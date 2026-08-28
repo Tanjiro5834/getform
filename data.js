@@ -53,3 +53,30 @@ const FOOD_GROUPS = [
   { title: "Fats", items: ["Peanut butter", "Egg yolks", "Olive oil", "Avocado"] },
   { title: "Vegetables", items: ["Kangkong", "Malunggay", "Squash", "Sitaw", "Spinach"] },
 ];
+
+// Macros per 100g (or per stated unit) — used by the quick-add food lookup.
+// protein/fat/carbs in grams per serving unit.
+const FOOD_DB = [
+  { name: "Chicken breast", unit: "100g", protein: 31, fat: 3.6, carbs: 0 },
+  { name: "Chicken thigh", unit: "100g", protein: 26, fat: 10.9, carbs: 0 },
+  { name: "Egg, large", unit: "1 pc", protein: 6, fat: 5, carbs: 0.5 },
+  { name: "Egg white", unit: "1 pc", protein: 3.6, fat: 0, carbs: 0.2 },
+  { name: "Tilapia", unit: "100g", protein: 26, fat: 2.7, carbs: 0 },
+  { name: "Bangus (milkfish)", unit: "100g", protein: 20.5, fat: 10.8, carbs: 0 },
+  { name: "Galunggong (mackerel scad)", unit: "100g", protein: 21, fat: 4, carbs: 0 },
+  { name: "Canned tuna (in water)", unit: "100g", protein: 26, fat: 1, carbs: 0 },
+  { name: "Tofu, firm", unit: "100g", protein: 8, fat: 4.8, carbs: 2 },
+  { name: "Tempeh", unit: "100g", protein: 19, fat: 11, carbs: 9 },
+  { name: "Greek yogurt, plain", unit: "100g", protein: 10, fat: 0.4, carbs: 3.6 },
+  { name: "Whey protein", unit: "1 scoop (30g)", protein: 24, fat: 2, carbs: 3 },
+  { name: "Rice, cooked", unit: "1 cup (158g)", protein: 4.3, fat: 0.4, carbs: 44.5 },
+  { name: "Oats, dry", unit: "1 cup (80g)", protein: 10.5, fat: 5.6, carbs: 53.7 },
+  { name: "Sweet potato, cooked", unit: "100g", protein: 1.6, fat: 0.1, carbs: 20.1 },
+  { name: "Banana", unit: "1 medium", protein: 1.3, fat: 0.4, carbs: 27 },
+  { name: "Whole wheat bread", unit: "1 slice", protein: 3.6, fat: 1.1, carbs: 12 },
+  { name: "Peanut butter", unit: "1 tbsp (16g)", protein: 3.6, fat: 8, carbs: 3.1 },
+  { name: "Olive oil", unit: "1 tbsp (14g)", protein: 0, fat: 14, carbs: 0 },
+  { name: "Avocado", unit: "100g", protein: 2, fat: 15, carbs: 8.5 },
+  { name: "Kangkong (cooked)", unit: "100g", protein: 2.6, fat: 0.2, carbs: 3.1 },
+  { name: "Squash (cooked)", unit: "100g", protein: 1, fat: 0.1, carbs: 12 },
+];

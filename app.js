@@ -202,6 +202,114 @@
     });
   }
 
+  // ===== Quick add food =====
+
+  let selectedFood = null;
+  let quickAddBound = false;
+
+  function setupQuickAdd() {
+    if (quickAddBound) return;
+    quickAddBound = true;
+
+    const searchInput = document.getElementById("foodSearchInput");
+    const suggestBox = document.getElementById("foodSuggest");
+    const qtyInput = document.getElementById("foodQtyInput");
+    const addBtn = document.getElementById("foodAddBtn");
+    const hint = document.getElementById("quickAddHint");
+
+    function closeSuggest() {
+      suggestBox.classList.remove("open");
+      suggestBox.innerHTML = "";
+    }
+
+    function selectFood(food) {
+      selectedFood = food;
+      searchInput.value = food.name;
+      closeSuggest();
+      addBtn.disabled = false;
+      updateHint();
+    }
+
+    function updateHint() {
+      if (!selectedFood) {
+        hint.textContent = "Pick a food, then set how many servings.";
+        return;
+      }
+      const qty = parseFloat(qtyInput.value) || 0;
+      const p = round1(selectedFood.protein * qty);
+      const f = round1(selectedFood.fat * qty);
+      const c = round1(selectedFood.carbs * qty);
+      hint.textContent = `${qty} × ${selectedFood.unit} → ${p}g protein · ${f}g fat · ${c}g carbs`;
+    }
+
+    searchInput.addEventListener("input", () => {
+      selectedFood = null;
+      addBtn.disabled = true;
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) { closeSuggest(); updateHint(); return; }
+
+      const matches = FOOD_DB.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 8);
+      if (matches.length === 0) {
+        suggestBox.innerHTML = `<div class="food-suggest-empty">No match — try a different term, or log grams manually with the +/− steppers above.</div>`;
+        suggestBox.classList.add("open");
+        return;
+      }
+
+      suggestBox.innerHTML = matches.map((f) =>
+        `<div class="food-suggest-item" data-name="${escapeAttr(f.name)}">
+          <span class="food-suggest-name">${escapeHTML(f.name)}</span>
+          <span class="food-suggest-macro">/${escapeHTML(f.unit)} · P${f.protein} F${f.fat} C${f.carbs}</span>
+        </div>`
+      ).join("");
+      suggestBox.classList.add("open");
+
+      suggestBox.querySelectorAll(".food-suggest-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          const food = FOOD_DB.find((f) => f.name === el.dataset.name);
+          selectFood(food);
+        });
+      });
+
+      updateHint();
+    });
+
+    qtyInput.addEventListener("input", updateHint);
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".quick-add-search-wrap")) closeSuggest();
+    });
+
+    addBtn.addEventListener("click", () => {
+      if (!selectedFood) return;
+      const qty = parseFloat(qtyInput.value) || 0;
+      if (qty <= 0) return;
+
+      const cur = todayMacros();
+      cur.protein = round1((cur.protein || 0) + selectedFood.protein * qty);
+      cur.fat = round1((cur.fat || 0) + selectedFood.fat * qty);
+      cur.carbs = round1((cur.carbs || 0) + selectedFood.carbs * qty);
+      state.macrosLogged[todayKey] = cur;
+      saveState();
+      renderMacros();
+      setupQuickAdd_reattach();
+
+      searchInput.value = "";
+      qtyInput.value = "1";
+      selectedFood = null;
+      addBtn.disabled = true;
+      updateHint();
+      closeSuggest();
+    });
+  }
+
+  // renderMacros() rebuilds the macro grid but not the quick-add controls,
+  // so nothing here needs re-binding — kept as a no-op hook for clarity.
+  function setupQuickAdd_reattach() {}
+
+  function round1(n) {
+    return Math.round(n * 10) / 10;
+  }
+
   // ===== Foods reference =====
 
   function renderFoods() {
@@ -229,8 +337,18 @@
       tr.innerHTML = `
         <td>${row.week}</td>
         <td><input type="text" inputmode="decimal" placeholder="—" value="${escapeAttr(row.weight)}" data-idx="${idx}" data-field="weight"></td>
-        <td><input type="text" placeholder="—" value="${escapeAttr(row.notes)}" data-idx="${idx}" data-field="notes"></td>`;
+        <td><input type="text" placeholder="—" value="${escapeAttr(row.notes)}" data-idx="${idx}" data-field="notes"></td>
+        <td><button class="row-remove-btn" data-idx="${idx}" aria-label="Remove week ${row.week}">×</button></td>`;
       tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll(".row-remove-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        state.weekLog.splice(idx, 1);
+        saveState();
+        renderLogTable();
+      });
     });
 
     tbody.querySelectorAll("input").forEach((input) => {
@@ -260,8 +378,7 @@
     });
   }
 
-  setupCollapse("logToggle", "logBody");
-  setupCollapse("foodsToggle", "foodsBody");
+  // (Weekly log and Food reference are always expanded — no collapse needed.)
 
   // ===== Reset =====
 
@@ -293,6 +410,7 @@
     renderMeals();
     renderFoods();
     renderLogTable();
+    setupQuickAdd();
   }
 
   renderAll();

@@ -31,63 +31,74 @@
 
 <main class="layout">
 
-  <!-- TODAY -->
-  <section class="panel panel-today" aria-labelledby="todayHeading">
-    <div class="panel-head">
-      <h1 id="todayHeading" class="panel-title">Today</h1>
-      <span class="date-chip" id="dateChip"></span>
-    </div>
+  <div class="col col-left">
+    <!-- TODAY -->
+    <section class="panel panel-today" aria-labelledby="todayHeading">
+      <div class="panel-head">
+        <h1 id="todayHeading" class="panel-title">Today</h1>
+        <span class="date-chip" id="dateChip"></span>
+      </div>
 
-    <div id="todayContent"></div>
-  </section>
+      <div id="todayContent"></div>
+    </section>
 
-  <!-- MACROS -->
-  <section class="panel panel-macros" aria-labelledby="macrosHeading">
-    <div class="panel-head">
-      <h2 id="macrosHeading" class="panel-title">Macros</h2>
-      <span class="panel-sub">~1850 kcal target</span>
-    </div>
-    <div class="macro-grid" id="macroGrid"></div>
-    <div class="macro-total">
-      <span class="macro-total-label">Logged today</span>
-      <span class="macro-total-value" id="macroTotalValue">0 <span class="unit">kcal</span></span>
-    </div>
-  </section>
-
-  <!-- MEALS -->
-  <section class="panel panel-meals" aria-labelledby="mealsHeading">
-    <div class="panel-head">
-      <h2 id="mealsHeading" class="panel-title">Meal reference</h2>
-      <span class="panel-sub">tap to mark eaten</span>
-    </div>
-    <div class="meal-list" id="mealList"></div>
-  </section>
-
-  <!-- LOG -->
-  <section class="panel panel-log" aria-labelledby="logHeading">
-    <button class="collapse-trigger" id="logToggle" aria-expanded="false" aria-controls="logBody">
-      <h2 id="logHeading" class="panel-title">Weekly log</h2>
-      <svg class="chevron" width="16" height="16" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="log-body" id="logBody">
-      <table class="log-table">
-        <thead>
-          <tr><th>Week</th><th>Bodyweight (kg)</th><th>Notes</th></tr>
-        </thead>
-        <tbody id="logTableBody"></tbody>
-      </table>
-      <button class="btn-ghost" id="addWeekBtn">+ Add week</button>
-    </div>
-  </section>
-
-  <!-- FOODS -->
-  <section class="panel panel-foods" aria-labelledby="foodsHeading">
-    <button class="collapse-trigger" id="foodsToggle" aria-expanded="false" aria-controls="foodsBody">
+    <!-- FOODS -->
+    <section class="panel panel-foods" aria-labelledby="foodsHeading">
       <h2 id="foodsHeading" class="panel-title">Food reference</h2>
-      <svg class="chevron" width="16" height="16" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="foods-body" id="foodsBody"></div>
-  </section>
+      <div class="foods-body open" id="foodsBody"></div>
+    </section>
+  </div>
+
+  <div class="col col-right">
+    <!-- MACROS -->
+    <section class="panel panel-macros" aria-labelledby="macrosHeading">
+      <div class="panel-head">
+        <h2 id="macrosHeading" class="panel-title">Macros</h2>
+        <span class="panel-sub">~1850 kcal target</span>
+      </div>
+      <div class="macro-grid" id="macroGrid"></div>
+      <div class="macro-total">
+        <span class="macro-total-label">Logged today</span>
+        <span class="macro-total-value" id="macroTotalValue">0 <span class="unit">kcal</span></span>
+      </div>
+
+      <div class="quick-add">
+        <p class="quick-add-label">Quick add food</p>
+        <div class="quick-add-row">
+          <div class="quick-add-search-wrap">
+            <input type="text" id="foodSearchInput" class="quick-add-input" placeholder="Search food, e.g. chicken breast" autocomplete="off">
+            <div class="food-suggest" id="foodSuggest"></div>
+          </div>
+          <input type="number" id="foodQtyInput" class="quick-add-qty" placeholder="1" min="0" step="0.5" value="1">
+          <button class="quick-add-btn" id="foodAddBtn" disabled>Add</button>
+        </div>
+        <p class="quick-add-hint" id="quickAddHint">Pick a food, then set how many servings.</p>
+      </div>
+    </section>
+
+    <!-- MEALS -->
+    <section class="panel panel-meals" aria-labelledby="mealsHeading">
+      <div class="panel-head">
+        <h2 id="mealsHeading" class="panel-title">Meal reference</h2>
+        <span class="panel-sub">tap to mark eaten</span>
+      </div>
+      <div class="meal-list" id="mealList"></div>
+    </section>
+
+    <!-- LOG -->
+    <section class="panel panel-log" aria-labelledby="logHeading">
+      <h2 id="logHeading" class="panel-title">Weekly log</h2>
+      <div class="log-body open" id="logBody">
+        <table class="log-table">
+          <thead>
+            <tr><th>Week</th><th>Bodyweight (kg)</th><th>Notes</th><th></th></tr>
+          </thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+        <button class="btn-ghost" id="addWeekBtn">+ Add week</button>
+      </div>
+    </section>
+  </div>
 
 </main>
 

@@ -48,7 +48,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 780px;
+  max-width: 980px;
   margin: 0 auto;
   padding: 40px 24px 24px;
   position: relative;
@@ -116,13 +116,24 @@ button { font-family: inherit; }
 /* ===== Layout ===== */
 
 .layout {
-  max-width: 780px;
+  max-width: 980px;
   margin: 0 auto;
   padding: 0 24px 40px;
   display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
   gap: 16px;
   position: relative;
   z-index: 1;
+}
+
+.col {
+  display: grid;
+  gap: 16px;
+}
+
+.col-full {
+  grid-column: 1 / -1;
 }
 
 .panel {
@@ -345,6 +356,116 @@ button { font-family: inherit; }
 .macro-total-value { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
 .macro-total-value .unit { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
 
+/* ===== Quick add ===== */
+
+.quick-add {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.quick-add-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+
+.quick-add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-add-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-add-input, .quick-add-qty {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.quick-add-qty { width: 64px; flex: none; text-align: center; }
+
+.quick-add-btn {
+  flex: none;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.quick-add-btn:disabled {
+  background: var(--line-strong);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.quick-add-btn:not(:disabled):hover { opacity: 0.88; }
+
+.quick-add-hint {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin: 8px 2px 0;
+}
+
+.food-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 5;
+  display: none;
+  box-shadow: 0 6px 18px rgba(28, 27, 25, 0.08);
+}
+
+.food-suggest.open { display: block; }
+
+.food-suggest-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.food-suggest-item:last-child { border-bottom: none; }
+.food-suggest-item:hover, .food-suggest-item.active { background: var(--sage-dim); }
+
+.food-suggest-name { font-size: 13.5px; }
+.food-suggest-macro {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.food-suggest-empty {
+  padding: 12px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
 /* ===== Meals ===== */
 
 .meal-list { display: grid; gap: 8px; }
@@ -445,6 +566,25 @@ button { font-family: inherit; }
 .log-table input:focus { outline: none; background: var(--paper); }
 .log-table td:first-child { font-family: var(--font-mono); color: var(--ink-soft); }
 
+.row-remove-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.row-remove-btn:hover {
+  background: var(--clay-dim);
+  border-color: var(--clay);
+  color: #7A3E24;
+}
+
 .btn-ghost {
   margin-top: 14px;
   background: none;
@@ -483,7 +623,7 @@ button { font-family: inherit; }
 /* ===== Footer ===== */
 
 .foot-note {
-  max-width: 780px;
+  max-width: 980px;
   margin: 8px auto 0;
   padding: 0 24px 40px;
   display: flex;
@@ -523,10 +663,16 @@ input:focus-visible {
 
 /* ===== Responsive ===== */
 
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  .col-full { grid-column: auto; }
+}
+
 @media (max-width: 560px) {
   .topbar { padding: 28px 18px 18px; }
   .wordmark-main { font-size: 26px; }
   .layout { padding: 0 18px 32px; gap: 12px; }
+  .col { gap: 12px; }
   .panel { padding: 18px; }
   .macro-grid { gap: 8px; }
   .macro-card { padding: 11px 9px; }
