@@ -1,37 +1,42 @@
 // Static reference content — the plan itself doesn't change, only the logged state does.
 
+// logType controls what progression input is shown per exercise:
+//   "weight" -> barbell lift, logs kg + reps (bar + your two plates: 1.5kg & 2kg each side)
+//   "reps"   -> bodyweight movement, logs reps only (or reps + notes like "feet elevated")
+//   "duration" -> treadmill/cardio, logs minutes + optional speed/incline note
 const WEEK_PLAN = {
   0: { label: "Sun", type: "rest", title: "Rest", exercises: [] },
-  1: { label: "Mon", type: "upper", title: "Upper", exercises: [
-      { name: "DB floor press", sets: "3 × 10–12" },
-      { name: "DB row (one arm, supported)", sets: "3 × 10–12/side" },
-      { name: "DB overhead press", sets: "3 × 10–12" },
-      { name: "DB curl", sets: "2 × 12–15" },
-      { name: "DB skull crusher / kickback", sets: "2 × 12–15" },
+  1: { label: "Mon", type: "upper", title: "Upper (push)", exercises: [
+      { name: "Push-ups", sets: "3 × AMRAP", logType: "reps" },
+      { name: "Pike push-ups", sets: "3 × 8–12", logType: "reps" },
+      { name: "Barbell overhead press", sets: "3 × 8–12", logType: "weight" },
+      { name: "Barbell floor press", sets: "3 × 10–12", logType: "weight" },
+      { name: "Dips (chair/bench)", sets: "3 × 10–15", logType: "reps" },
     ] },
-  2: { label: "Tue", type: "lower", title: "Lower", exercises: [
-      { name: "Goblet squat", sets: "3 × 12–15" },
-      { name: "DB Romanian deadlift", sets: "3 × 10–12" },
-      { name: "Bulgarian split squat", sets: "3 × 10/leg" },
-      { name: "Walking lunges", sets: "3 × 10/leg" },
-      { name: "Calf raises (DB)", sets: "3 × 15–20" },
+  2: { label: "Tue", type: "lower", title: "Lower (hinge)", exercises: [
+      { name: "Barbell Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
+      { name: "Glute bridge (barbell hip thrust)", sets: "3 × 12–15", logType: "weight" },
+      { name: "Single-leg RDL (bodyweight)", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Calf raises (barbell on shoulders)", sets: "3 × 15–20", logType: "weight" },
     ] },
-  3: { label: "Wed", type: "rest", title: "Rest", exercises: [] },
-  4: { label: "Thu", type: "upper", title: "Upper", exercises: [
-      { name: "DB floor press", sets: "3 × 10–12" },
-      { name: "DB row (one arm, supported)", sets: "3 × 10–12/side" },
-      { name: "DB overhead press", sets: "3 × 10–12" },
-      { name: "DB curl", sets: "2 × 12–15" },
-      { name: "DB skull crusher / kickback", sets: "2 × 12–15" },
+  3: { label: "Wed", type: "cardio", title: "Treadmill", exercises: [
+      { name: "Treadmill — steady state or intervals", sets: "20–30 min", logType: "duration" },
     ] },
-  5: { label: "Fri", type: "lower", title: "Lower", exercises: [
-      { name: "Goblet squat", sets: "3 × 12–15" },
-      { name: "DB Romanian deadlift", sets: "3 × 10–12" },
-      { name: "Bulgarian split squat", sets: "3 × 10/leg" },
-      { name: "Walking lunges", sets: "3 × 10/leg" },
-      { name: "Calf raises (DB)", sets: "3 × 15–20" },
+  4: { label: "Thu", type: "upper", title: "Upper (pull)", exercises: [
+      { name: "Barbell row", sets: "3 × 10–12", logType: "weight" },
+      { name: "Superman hold / back extension", sets: "3 × 12–15", logType: "reps" },
+      { name: "Barbell curl", sets: "2 × 12–15", logType: "weight" },
+      { name: "Doorway/table inverted row", sets: "3 × 8–12", logType: "reps" },
     ] },
-  6: { label: "Sat", type: "rest", title: "Rest / light cardio", exercises: [] },
+  5: { label: "Fri", type: "lower", title: "Lower (squat)", exercises: [
+      { name: "Barbell/goblet squat", sets: "3 × 12–15", logType: "weight" },
+      { name: "Bulgarian split squat (bodyweight or barbell)", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Walking lunges", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Wall sit", sets: "3 × 30–45s", logType: "reps" },
+    ] },
+  6: { label: "Sat", type: "cardio", title: "Treadmill / light cardio", exercises: [
+      { name: "Treadmill — easy pace", sets: "20–30 min", logType: "duration" },
+    ] },
 };
 
 const MACRO_TARGETS = [

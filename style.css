@@ -213,6 +213,7 @@ button { font-family: inherit; }
 
 .day-focus-tag.upper { background: var(--sage-dim); color: #3F4C36; }
 .day-focus-tag.lower { background: var(--clay-dim); color: #7A3E24; }
+.day-focus-tag.cardio { background: var(--line); color: var(--ink-soft); }
 
 .exercise-row {
   display: flex;
@@ -257,6 +258,49 @@ button { font-family: inherit; }
 .ex-name { font-size: 14.5px; }
 .ex-name.done { color: var(--ink-soft); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .ex-sets { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+
+.progress-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.progress-input {
+  flex: 1;
+  min-width: 70px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 13px;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.progress-input-narrow { flex: none; width: 64px; min-width: 64px; }
+
+.progress-save-btn {
+  flex: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--sage);
+  color: var(--paper-raised);
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.progress-save-btn:hover { opacity: 0.88; }
+
+.ex-last {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
 
 .mark-day-btn {
   margin-top: 18px;
