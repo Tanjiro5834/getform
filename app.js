@@ -13,6 +13,7 @@
       macrosLogged: {},      // "YYYY-MM-DD" -> { protein, fat, carbs } (grams)
       mealsEaten: {},        // "YYYY-MM-DD::mealId" -> true
       weekLog: [],           // [{ week, weight, notes }]
+      progressLog: {},       // "exerciseName" -> [{ date, weight?, reps?, minutes?, note? }]
     };
   }
 
@@ -103,12 +104,18 @@
     day.exercises.forEach((ex) => {
       const exKey = `${todayKey}::${ex.name}`;
       const done = !!state.exercisesDone[exKey];
+      const history = state.progressLog[ex.name] || [];
+      const last = history[history.length - 1];
+      const todayEntry = history.find((h) => h.date === todayKey);
+
       html += `
         <div class="exercise-row">
           <button class="ex-check ${done ? "done" : ""}" data-exkey="${escapeAttr(exKey)}" aria-label="Mark ${escapeAttr(ex.name)} done"></button>
           <div class="ex-info">
             <span class="ex-name ${done ? "done" : ""}">${escapeHTML(ex.name)}</span>
             <span class="ex-sets">${escapeHTML(ex.sets)}</span>
+            ${renderProgressInput(ex, todayEntry)}
+            ${last ? `<span class="ex-last">Last: ${escapeHTML(formatEntry(ex.logType, last))} (${formatDateShort(last.date)})</span>` : ""}
           </div>
         </div>`;
     });
@@ -133,6 +140,82 @@
       renderToday();
       renderRing();
     });
+
+    container.querySelectorAll(".progress-save-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const exName = btn.dataset.exname;
+        const logType = btn.dataset.logtype;
+        const row = btn.closest(".progress-input-row");
+        const entry = { date: todayKey };
+
+        if (logType === "weight") {
+          const w = parseFloat(row.querySelector('[data-field="weight"]').value);
+          const r = parseInt(row.querySelector('[data-field="reps"]').value, 10);
+          if (isNaN(w) || isNaN(r)) return;
+          entry.weight = w;
+          entry.reps = r;
+        } else if (logType === "reps") {
+          const r = parseInt(row.querySelector('[data-field="reps"]').value, 10);
+          if (isNaN(r)) return;
+          entry.reps = r;
+        } else if (logType === "duration") {
+          const m = parseFloat(row.querySelector('[data-field="minutes"]').value);
+          if (isNaN(m)) return;
+          entry.minutes = m;
+          const noteEl = row.querySelector('[data-field="note"]');
+          if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
+        }
+
+        if (!state.progressLog[exName]) state.progressLog[exName] = [];
+        const list = state.progressLog[exName];
+        const existingIdx = list.findIndex((h) => h.date === todayKey);
+        if (existingIdx >= 0) list[existingIdx] = entry;
+        else list.push(entry);
+
+        saveState();
+        renderToday();
+      });
+    });
+  }
+
+  function renderProgressInput(ex, todayEntry) {
+    const t = todayEntry || {};
+    if (ex.logType === "weight") {
+      return `
+        <div class="progress-input-row">
+          <input type="number" step="0.5" min="0" class="progress-input" data-field="weight" placeholder="kg" value="${t.weight != null ? t.weight : ""}">
+          <input type="number" min="0" class="progress-input progress-input-narrow" data-field="reps" placeholder="reps" value="${t.reps != null ? t.reps : ""}">
+          <button class="progress-save-btn" data-exname="${escapeAttr(ex.name)}" data-logtype="weight">Log</button>
+        </div>`;
+    }
+    if (ex.logType === "reps") {
+      return `
+        <div class="progress-input-row">
+          <input type="number" min="0" class="progress-input progress-input-narrow" data-field="reps" placeholder="reps" value="${t.reps != null ? t.reps : ""}">
+          <button class="progress-save-btn" data-exname="${escapeAttr(ex.name)}" data-logtype="reps">Log</button>
+        </div>`;
+    }
+    if (ex.logType === "duration") {
+      return `
+        <div class="progress-input-row">
+          <input type="number" step="1" min="0" class="progress-input progress-input-narrow" data-field="minutes" placeholder="min" value="${t.minutes != null ? t.minutes : ""}">
+          <input type="text" class="progress-input" data-field="note" placeholder="pace/incline (optional)" value="${t.note ? escapeAttr(t.note) : ""}">
+          <button class="progress-save-btn" data-exname="${escapeAttr(ex.name)}" data-logtype="duration">Log</button>
+        </div>`;
+    }
+    return "";
+  }
+
+  function formatEntry(logType, entry) {
+    if (logType === "weight") return `${entry.weight}kg × ${entry.reps}`;
+    if (logType === "reps") return `${entry.reps} reps`;
+    if (logType === "duration") return `${entry.minutes} min${entry.note ? " — " + entry.note : ""}`;
+    return "";
+  }
+
+  function formatDateShort(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
   // ===== Macros =====
