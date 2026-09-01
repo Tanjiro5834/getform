@@ -339,9 +339,44 @@ button { font-family: inherit; }
   font-size: 14px;
   line-height: 1;
   color: var(--ink);
+  flex: none;
+  padding: 0;
 }
 
 .macro-stepper button:hover { background: var(--line); }
+
+.macro-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 0 4px;
+  color: var(--ink);
+  -moz-appearance: textfield;
+}
+
+.macro-input::-webkit-outer-spin-button,
+.macro-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.macro-input::placeholder {
+  color: var(--ink-soft);
+  font-size: 10.5px;
+}
+
+.macro-input:focus {
+  outline: none;
+  border-color: var(--sage);
+  background: var(--paper);
+}
 
 .macro-total {
   display: flex;

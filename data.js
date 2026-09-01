@@ -79,4 +79,5 @@ const FOOD_DB = [
   { name: "Avocado", unit: "100g", protein: 2, fat: 15, carbs: 8.5 },
   { name: "Kangkong (cooked)", unit: "100g", protein: 2.6, fat: 0.2, carbs: 3.1 },
   { name: "Squash (cooked)", unit: "100g", protein: 1, fat: 0.1, carbs: 12 },
+  { name: "Milo (with milk, 1 mug)", unit: "1 mug (~220ml)", protein: 8.6, fat: 8.4, carbs: 28.6 },
 ];

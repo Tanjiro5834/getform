@@ -157,6 +157,7 @@
         <div class="macro-value">${val}<span class="target">/${m.target}${m.unit}</span></div>
         <div class="macro-stepper">
           <button data-key="${m.key}" data-delta="-5">−</button>
+          <input type="number" class="macro-input" data-key="${m.key}" placeholder="add g" min="0" />
           <button data-key="${m.key}" data-delta="5">+</button>
         </div>`;
       grid.appendChild(card);
@@ -170,6 +171,20 @@
         const delta = parseInt(btn.dataset.delta, 10);
         const cur = todayMacros();
         cur[key] = Math.max(0, (cur[key] || 0) + delta);
+        state.macrosLogged[todayKey] = cur;
+        saveState();
+        renderMacros();
+      });
+    });
+
+    grid.querySelectorAll(".macro-input").forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        const key = input.dataset.key;
+        const add = parseFloat(input.value);
+        if (isNaN(add) || add <= 0) return;
+        const cur = todayMacros();
+        cur[key] = Math.max(0, (cur[key] || 0) + add);
         state.macrosLogged[todayKey] = cur;
         saveState();
         renderMacros();
