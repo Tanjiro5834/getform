@@ -253,7 +253,7 @@
         const key = btn.dataset.key;
         const delta = parseInt(btn.dataset.delta, 10);
         const cur = todayMacros();
-        cur[key] = Math.max(0, (cur[key] || 0) + delta);
+        cur[key] = round1(Math.max(0, (cur[key] || 0) + delta));
         state.macrosLogged[todayKey] = cur;
         saveState();
         renderMacros();
@@ -267,7 +267,7 @@
         const add = parseFloat(input.value);
         if (isNaN(add) || add <= 0) return;
         const cur = todayMacros();
-        cur[key] = Math.max(0, (cur[key] || 0) + add);
+        cur[key] = round1(Math.max(0, (cur[key] || 0) + add));
         state.macrosLogged[todayKey] = cur;
         saveState();
         renderMacros();
