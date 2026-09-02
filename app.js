@@ -24,7 +24,16 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw);
-      return Object.assign(defaultState(), parsed);
+      const merged = Object.assign(defaultState(), parsed);
+      // One-time cleanup: earlier versions could save floating-point-tainted
+      // macro values (e.g. 181.60000000000002). Round anything already stored.
+      Object.keys(merged.macrosLogged || {}).forEach((dateKey) => {
+        const day = merged.macrosLogged[dateKey];
+        Object.keys(day).forEach((macroKey) => {
+          day[macroKey] = Math.round(day[macroKey] * 10) / 10;
+        });
+      });
+      return merged;
     } catch (e) {
       return defaultState();
     }
