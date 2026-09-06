@@ -90,12 +90,15 @@
     let dayKeys = [];
 
     if (state.programStartDate) {
-      // Find which cycle the selected date falls into, then list that
+      // Find which cycle *today's real date* falls into, then list that
       // cycle's dates (cycle 0 = programStartDate..+cycleLength-1, etc.).
-      const dateKey = getSelectedDateKey();
-      const cycleIdx = getCycleDayIndex(dateKey);
+      // This is intentionally independent of whatever date the user has
+      // selected for logging on the Today page — the ring always reflects
+      // the actual current cycle, not a backfilled one.
+      const realTodayKey = new Date().toISOString().slice(0, 10);
+      const cycleIdx = getCycleDayIndex(realTodayKey);
       const start = new Date(state.programStartDate + "T00:00:00");
-      const target = new Date(dateKey + "T00:00:00");
+      const target = new Date(realTodayKey + "T00:00:00");
       const diffDays = Math.max(0, Math.round((target - start) / 86400000));
       const cycleNumber = cycleIdx === null ? 0 : Math.floor(diffDays / segCount);
       const cycleStart = new Date(start);
