@@ -411,6 +411,7 @@ button { font-family: inherit; }
 
 .day-focus-tag.upper { background: var(--sage-dim); color: #3F4C36; }
 .day-focus-tag.lower { background: var(--clay-dim); color: #7A3E24; }
+.day-focus-tag.cardio { background: var(--line); color: var(--ink-soft); }
 
 .exercise-row {
   display: flex;
@@ -1032,6 +1033,7 @@ input:focus-visible {
 
 .record-day-tag.upper { background: var(--sage-dim); color: #3F4C36; }
 .record-day-tag.lower { background: var(--clay-dim); color: #7A3E24; }
+.record-day-tag.cardio { background: var(--line); color: var(--ink-soft); }
 .record-day-tag.rest { background: var(--line); color: var(--ink-soft); }
 
 .record-macros {

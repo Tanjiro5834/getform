@@ -1,37 +1,42 @@
 // Static reference content — the plan itself doesn't change, only the logged state does.
 
+// logType controls what progression input is shown per exercise:
+//   "weight"   -> barbell lift, logs kg + reps
+//   "reps"     -> bodyweight movement, logs reps only
+//   "duration" -> treadmill/cardio, logs minutes + optional speed/incline note
 const WEEK_PLAN = {
-  0: { label: "Day 1", type: "upper", title: "Upper", exercises: [
-      { name: "DB floor press", sets: "3 × 10–12", logType: "weight" },
-      { name: "DB row (one arm, supported)", sets: "3 × 10–12/side", logType: "weight" },
-      { name: "DB overhead press", sets: "3 × 10–12", logType: "weight" },
-      { name: "DB curl", sets: "2 × 12–15", logType: "weight" },
-      { name: "DB skull crusher / kickback", sets: "2 × 12–15", logType: "weight" },
+  0: { label: "Day 1", type: "lower", title: "Lower (hinge)", exercises: [
+      { name: "Barbell Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
+      { name: "Glute bridge (barbell hip thrust)", sets: "3 × 12–15", logType: "weight" },
+      { name: "Single-leg RDL (bodyweight)", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Calf raises (barbell on shoulders)", sets: "3 × 15–20", logType: "weight" },
     ] },
-  1: { label: "Day 2", type: "lower", title: "Lower", exercises: [
-      { name: "Goblet squat", sets: "3 × 12–15", logType: "weight" },
-      { name: "DB Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
-      { name: "Bulgarian split squat", sets: "3 × 10/leg", logType: "weight" },
-      { name: "Walking lunges", sets: "3 × 10/leg", logType: "weight" },
-      { name: "Calf raises (DB)", sets: "3 × 15–20", logType: "weight" },
+  1: { label: "Day 2", type: "cardio", title: "Treadmill", exercises: [
+      { name: "Treadmill — steady state or intervals", sets: "20–30 min", logType: "duration" },
     ] },
-  2: { label: "Day 3", type: "rest", title: "Rest", exercises: [] },
-  3: { label: "Day 4", type: "upper", title: "Upper", exercises: [
-      { name: "DB floor press", sets: "3 × 10–12", logType: "weight" },
-      { name: "DB row (one arm, supported)", sets: "3 × 10–12/side", logType: "weight" },
-      { name: "DB overhead press", sets: "3 × 10–12", logType: "weight" },
-      { name: "DB curl", sets: "2 × 12–15", logType: "weight" },
-      { name: "DB skull crusher / kickback", sets: "2 × 12–15", logType: "weight" },
+  2: { label: "Day 3", type: "upper", title: "Upper (pull)", exercises: [
+      { name: "Barbell row", sets: "3 × 10–12", logType: "weight" },
+      { name: "Superman hold / back extension", sets: "3 × 12–15", logType: "reps" },
+      { name: "Barbell curl", sets: "2 × 12–15", logType: "weight" },
+      { name: "Doorway/table inverted row", sets: "3 × 8–12", logType: "reps" },
     ] },
-  4: { label: "Day 5", type: "lower", title: "Lower", exercises: [
-      { name: "Goblet squat", sets: "3 × 12–15", logType: "weight" },
-      { name: "DB Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
-      { name: "Bulgarian split squat", sets: "3 × 10/leg", logType: "weight" },
-      { name: "Walking lunges", sets: "3 × 10/leg", logType: "weight" },
-      { name: "Calf raises (DB)", sets: "3 × 15–20", logType: "weight" },
+  3: { label: "Day 4", type: "lower", title: "Lower (squat)", exercises: [
+      { name: "Barbell/goblet squat", sets: "3 × 12–15", logType: "weight" },
+      { name: "Bulgarian split squat (bodyweight or barbell)", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Walking lunges", sets: "3 × 10/leg", logType: "reps" },
+      { name: "Wall sit", sets: "3 × 30–45s", logType: "reps" },
     ] },
-  5: { label: "Day 6", type: "rest", title: "Rest", exercises: [] },
-  6: { label: "Day 7", type: "rest", title: "Rest / light cardio", exercises: [] },
+  4: { label: "Day 5", type: "cardio", title: "Treadmill / light cardio", exercises: [
+      { name: "Treadmill — easy pace", sets: "20–30 min", logType: "duration" },
+    ] },
+  5: { label: "Day 6", type: "upper", title: "Upper (push)", exercises: [
+      { name: "Push-ups", sets: "3 × AMRAP", logType: "reps" },
+      { name: "Pike push-ups", sets: "3 × 8–12", logType: "reps" },
+      { name: "Barbell overhead press", sets: "3 × 8–12", logType: "weight" },
+      { name: "Barbell floor press", sets: "3 × 10–12", logType: "weight" },
+      { name: "Dips (chair/bench)", sets: "3 × 10–15", logType: "reps" },
+    ] },
+  6: { label: "Day 7", type: "rest", title: "Rest", exercises: [] },
 };
 
 const MACRO_TARGETS = [
