@@ -13,12 +13,28 @@
 
 <div class="noise-overlay"></div>
 
-<header class="topbar">
-  <div class="wordmark">
-    <span class="wordmark-main">GetForm</span>
-    <span class="wordmark-tag">recomposition log</span>
+<button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+  <span class="hamburger-line"></span>
+  <span class="hamburger-line"></span>
+  <span class="hamburger-line"></span>
+</button>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<nav class="sidebar" id="sidebar" aria-label="Section navigation">
+  <div class="sidebar-brand">
+    <span class="sidebar-brand-main">GetForm</span>
+    <span class="sidebar-brand-tag">recomposition log</span>
   </div>
-  <div class="week-ring" id="weekRing" aria-label="Weekly training progress">
+  <ul class="sidebar-nav">
+    <li><a href="#" class="sidebar-link active" data-page="today"><span class="sidebar-link-dot"></span>Today</a></li>
+    <li><a href="#" class="sidebar-link" data-page="macros"><span class="sidebar-link-dot"></span>Macros</a></li>
+    <li><a href="#" class="sidebar-link" data-page="foods"><span class="sidebar-link-dot"></span>Food reference</a></li>
+    <li><a href="#" class="sidebar-link" data-page="meals"><span class="sidebar-link-dot"></span>Meal reference</a></li>
+    <li><a href="#" class="sidebar-link" data-page="log"><span class="sidebar-link-dot"></span>Weekly log</a></li>
+    <li><a href="#" class="sidebar-link" data-page="records"><span class="sidebar-link-dot"></span>Records</a></li>
+  </ul>
+  <div class="sidebar-ring" id="sidebarRing" aria-label="Weekly training progress">
     <svg viewBox="0 0 120 120" class="ring-svg">
       <g id="ringSegments"></g>
     </svg>
@@ -27,30 +43,26 @@
       <span class="ring-label">/4</span>
     </div>
   </div>
-</header>
+</nav>
+
+<div class="app-shell">
+
 
 <main class="layout">
 
-  <div class="col col-left">
-    <!-- TODAY -->
+  <!-- PAGE: TODAY -->
+  <div class="page active" data-page="today">
     <section class="panel panel-today" aria-labelledby="todayHeading">
       <div class="panel-head">
         <h1 id="todayHeading" class="panel-title">Today</h1>
         <span class="date-chip" id="dateChip"></span>
       </div>
-
       <div id="todayContent"></div>
-    </section>
-
-    <!-- FOODS -->
-    <section class="panel panel-foods" aria-labelledby="foodsHeading">
-      <h2 id="foodsHeading" class="panel-title">Food reference</h2>
-      <div class="foods-body open" id="foodsBody"></div>
     </section>
   </div>
 
-  <div class="col col-right">
-    <!-- MACROS -->
+  <!-- PAGE: MACROS -->
+  <div class="page" data-page="macros">
     <section class="panel panel-macros" aria-labelledby="macrosHeading">
       <div class="panel-head">
         <h2 id="macrosHeading" class="panel-title">Macros</h2>
@@ -75,8 +87,18 @@
         <p class="quick-add-hint" id="quickAddHint">Pick a food, then set how many servings.</p>
       </div>
     </section>
+  </div>
 
-    <!-- MEALS -->
+  <!-- PAGE: FOOD REFERENCE -->
+  <div class="page" data-page="foods">
+    <section class="panel panel-foods" aria-labelledby="foodsHeading">
+      <h2 id="foodsHeading" class="panel-title">Food reference</h2>
+      <div class="foods-body open" id="foodsBody"></div>
+    </section>
+  </div>
+
+  <!-- PAGE: MEAL REFERENCE -->
+  <div class="page" data-page="meals">
     <section class="panel panel-meals" aria-labelledby="mealsHeading">
       <div class="panel-head">
         <h2 id="mealsHeading" class="panel-title">Meal reference</h2>
@@ -84,8 +106,10 @@
       </div>
       <div class="meal-list" id="mealList"></div>
     </section>
+  </div>
 
-    <!-- LOG -->
+  <!-- PAGE: WEEKLY LOG -->
+  <div class="page" data-page="log">
     <section class="panel panel-log" aria-labelledby="logHeading">
       <h2 id="logHeading" class="panel-title">Weekly log</h2>
       <div class="log-body open" id="logBody">
@@ -100,12 +124,40 @@
     </section>
   </div>
 
+  <!-- PAGE: RECORDS -->
+  <div class="page" data-page="records">
+    <section class="panel panel-records" aria-labelledby="recordsHeading">
+      <div class="panel-head">
+        <h2 id="recordsHeading" class="panel-title">Records</h2>
+        <span class="panel-sub">your full history</span>
+      </div>
+
+      <div class="records-filters">
+        <select id="recordsRangeFilter" class="records-select">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="all">All time</option>
+        </select>
+        <select id="recordsTypeFilter" class="records-select">
+          <option value="all">All days</option>
+          <option value="upper">Upper only</option>
+          <option value="lower">Lower only</option>
+          <option value="rest">Rest / cardio only</option>
+        </select>
+      </div>
+
+      <div id="recordsList" class="records-list"></div>
+    </section>
+  </div>
+
 </main>
 
 <footer class="foot-note">
   <span>Stored locally on this device — nothing leaves your browser.</span>
   <button class="btn-text" id="resetBtn">Reset all data</button>
 </footer>
+
+</div>
 
 <script src="data.js"></script>
 <script src="app.js"></script>

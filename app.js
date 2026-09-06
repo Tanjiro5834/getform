@@ -508,6 +508,176 @@
     return String(str).replace(/"/g, "&quot;");
   }
 
+  // ===== Sidebar / hamburger / page switching =====
+
+  let sidebarBound = false;
+
+  function setupSidebar() {
+    if (sidebarBound) return;
+    sidebarBound = true;
+
+    const hamburger = document.getElementById("hamburgerBtn");
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    const links = Array.from(document.querySelectorAll(".sidebar-link"));
+    const pages = Array.from(document.querySelectorAll(".page"));
+
+    function openSidebar() {
+      sidebar.classList.add("open");
+      overlay.classList.add("open");
+      hamburger.setAttribute("aria-expanded", "true");
+    }
+    function closeSidebar() {
+      sidebar.classList.remove("open");
+      overlay.classList.remove("open");
+      hamburger.setAttribute("aria-expanded", "false");
+    }
+
+    function showPage(pageName) {
+      pages.forEach((p) => p.classList.toggle("active", p.dataset.page === pageName));
+      links.forEach((l) => l.classList.toggle("active", l.dataset.page === pageName));
+      if (pageName === "records") renderRecords();
+      document.querySelector(".layout").scrollTo?.(0, 0);
+      window.scrollTo(0, 0);
+    }
+
+    hamburger.addEventListener("click", () => {
+      const isOpen = sidebar.classList.contains("open");
+      isOpen ? closeSidebar() : openSidebar();
+    });
+    overlay.addEventListener("click", closeSidebar);
+
+    links.forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        showPage(link.dataset.page);
+        closeSidebar();
+      });
+    });
+  }
+
+  // ===== Records =====
+
+  function formatDateLong(dateKey) {
+    const d = new Date(dateKey + "T00:00:00");
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function formatEntryShort(logType, entry) {
+    if (logType === "weight") return `${entry.weight}kg × ${entry.reps}`;
+    if (logType === "reps") return `${entry.reps} reps`;
+    if (logType === "duration") return `${entry.minutes} min${entry.note ? " · " + entry.note : ""}`;
+    return "";
+  }
+
+  function findExerciseLogType(exName) {
+    for (const dayIdx in WEEK_PLAN) {
+      const found = (WEEK_PLAN[dayIdx].exercises || []).find((e) => e.name === exName);
+      if (found) return found.logType || "reps";
+    }
+    return "reps";
+  }
+
+  function renderRecords() {
+    const list = document.getElementById("recordsList");
+    const rangeVal = document.getElementById("recordsRangeFilter").value;
+    const typeVal = document.getElementById("recordsTypeFilter").value;
+
+    // Collect every date that has ANY logged data (macros, exercises, or day-mark).
+    const allDates = new Set([
+      ...Object.keys(state.macrosLogged || {}),
+      ...Object.keys(state.daysMarked || {}),
+    ]);
+    Object.values(state.progressLog || {}).forEach((entries) => {
+      entries.forEach((e) => allDates.add(e.date));
+    });
+
+    let dates = Array.from(allDates).sort().reverse(); // newest first
+
+    if (rangeVal !== "all") {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - parseInt(rangeVal, 10));
+      const cutoffKey = cutoff.toISOString().slice(0, 10);
+      dates = dates.filter((d) => d >= cutoffKey);
+    }
+
+    if (typeVal !== "all") {
+      dates = dates.filter((d) => {
+        const dayIdx = new Date(d + "T00:00:00").getDay();
+        const planType = WEEK_PLAN[dayIdx].type;
+        if (typeVal === "rest") return planType === "rest";
+        return planType === typeVal;
+      });
+    }
+
+    if (dates.length === 0) {
+      list.innerHTML = `<div class="records-empty">No logs match this filter yet.</div>`;
+      return;
+    }
+
+    list.innerHTML = dates.map((dateKey) => {
+      const dayIdx = new Date(dateKey + "T00:00:00").getDay();
+      const plan = WEEK_PLAN[dayIdx];
+      const macros = state.macrosLogged[dateKey] || { protein: 0, fat: 0, carbs: 0 };
+      const kcal = Math.round(
+        (macros.protein || 0) * 4 + (macros.fat || 0) * 9 + (macros.carbs || 0) * 4
+      );
+
+      // Gather this date's exercise entries from progressLog.
+      const dayExercises = [];
+      Object.keys(state.progressLog || {}).forEach((exName) => {
+        const entry = state.progressLog[exName].find((e) => e.date === dateKey);
+        if (entry) {
+          const logType = findExerciseLogType(exName);
+          dayExercises.push({ name: exName, detail: formatEntryShort(logType, entry) });
+        }
+      });
+
+      return `
+        <div class="record-card">
+          <div class="record-card-head">
+            <span class="record-date">${escapeHTML(formatDateLong(dateKey))}</span>
+            <span class="record-day-tag ${plan.type}">${escapeHTML(plan.title)}</span>
+          </div>
+          <div class="record-macros">
+            <div class="record-macro-cell">
+              <span class="record-macro-label">Kcal</span>
+              <span class="record-macro-value">${kcal}</span>
+            </div>
+            <div class="record-macro-cell">
+              <span class="record-macro-label">Protein</span>
+              <span class="record-macro-value">${macros.protein || 0}g</span>
+            </div>
+            <div class="record-macro-cell">
+              <span class="record-macro-label">Fat</span>
+              <span class="record-macro-value">${macros.fat || 0}g</span>
+            </div>
+            <div class="record-macro-cell">
+              <span class="record-macro-label">Carbs</span>
+              <span class="record-macro-value">${macros.carbs || 0}g</span>
+            </div>
+          </div>
+          <div class="record-exercises">
+            ${dayExercises.length
+              ? dayExercises.map((ex) => `
+                <div class="record-exercise-row">
+                  <span class="record-exercise-name">${escapeHTML(ex.name)}</span>
+                  <span class="record-exercise-detail">${escapeHTML(ex.detail)}</span>
+                </div>`).join("")
+              : `<span class="record-no-exercises">No workout logged this day</span>`}
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  let recordsFiltersBound = false;
+  function setupRecordsFilters() {
+    if (recordsFiltersBound) return;
+    recordsFiltersBound = true;
+    document.getElementById("recordsRangeFilter").addEventListener("change", renderRecords);
+    document.getElementById("recordsTypeFilter").addEventListener("change", renderRecords);
+  }
+
   // ===== Init =====
 
   function renderAll() {
@@ -517,7 +687,10 @@
     renderMeals();
     renderFoods();
     renderLogTable();
+    renderRecords();
     setupQuickAdd();
+    setupSidebar();
+    setupRecordsFilters();
   }
 
   renderAll();
