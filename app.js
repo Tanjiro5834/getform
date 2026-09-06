@@ -3,9 +3,6 @@
 
   const STORAGE_KEY = "getform_state_v1";
 
-  const todayIdx = new Date().getDay();
-  const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
   function defaultState() {
     return {
       exercisesDone: {},     // "YYYY-MM-DD::exerciseName" -> true
@@ -14,10 +11,36 @@
       mealsEaten: {},        // "YYYY-MM-DD::mealId" -> true
       weekLog: [],           // [{ week, weight, notes }]
       progressLog: {},       // "exerciseName" -> [{ date, weight?, reps?, minutes?, note? }]
+      programStartDate: null, // "YYYY-MM-DD" — Day 1 anchor, set once by the user
+      selectedDate: null,     // "YYYY-MM-DD" — the date currently being logged/viewed
     };
   }
 
   let state = loadState();
+
+  // The date the user is actively logging against. Falls back to real "today"
+  // only until a program start date exists, so a first-time user still sees
+  // something sensible before they've set anything up.
+  function getSelectedDateKey() {
+    return state.selectedDate || new Date().toISOString().slice(0, 10);
+  }
+
+  // Cycle position (0-6) for a given date, counted from programStartDate.
+  // Day 1 of the program = index 0 = WEEK_PLAN[0]. Returns null if no
+  // program start date has been set yet.
+  function getCycleDayIndex(dateKey) {
+    if (!state.programStartDate) return null;
+    const start = new Date(state.programStartDate + "T00:00:00");
+    const target = new Date(dateKey + "T00:00:00");
+    const diffDays = Math.round((target - start) / 86400000);
+    if (diffDays < 0) return null; // date is before the program even started
+    return diffDays % 7;
+  }
+
+  function getCycleDayNumber(dateKey) {
+    const idx = getCycleDayIndex(dateKey);
+    return idx === null ? null : idx + 1; // display as 1-indexed "Day 3"
+  }
 
   function loadState() {
     try {
@@ -44,10 +67,10 @@
   }
 
   function todayMacros() {
-    return state.macrosLogged[todayKey] || { protein: 0, fat: 0, carbs: 0 };
+    return state.macrosLogged[getSelectedDateKey()] || { protein: 0, fat: 0, carbs: 0 };
   }
 
-  // ===== Week ring =====
+  // ===== Program cycle ring =====
 
   function renderRing() {
     const svgNS = "http://www.w3.org/2000/svg";
@@ -59,13 +82,24 @@
     const segDeg = 360 / segCount - gapDeg;
 
     let markedCount = 0;
-    const dayKeys = [];
-    const d = new Date();
-    d.setDate(d.getDate() - d.getDay()); // start of week (Sun)
-    for (let i = 0; i < 7; i++) {
-      const dd = new Date(d);
-      dd.setDate(d.getDate() + i);
-      dayKeys.push(dd.toISOString().slice(0, 10));
+    let dayKeys = [];
+
+    if (state.programStartDate) {
+      // Find which 7-day cycle the selected date falls into, then list
+      // that cycle's 7 dates (cycle 0 = programStartDate..+6, etc.).
+      const dateKey = getSelectedDateKey();
+      const cycleIdx = getCycleDayIndex(dateKey);
+      const start = new Date(state.programStartDate + "T00:00:00");
+      const target = new Date(dateKey + "T00:00:00");
+      const diffDays = Math.max(0, Math.round((target - start) / 86400000));
+      const cycleNumber = cycleIdx === null ? 0 : Math.floor(diffDays / 7);
+      const cycleStart = new Date(start);
+      cycleStart.setDate(start.getDate() + cycleNumber * 7);
+      for (let i = 0; i < 7; i++) {
+        const dd = new Date(cycleStart);
+        dd.setDate(cycleStart.getDate() + i);
+        dayKeys.push(dd.toISOString().slice(0, 10));
+      }
     }
 
     for (let i = 0; i < segCount; i++) {
@@ -74,7 +108,7 @@
       const path = describeArc(cx, cy, r, startAngle, endAngle);
       const el = document.createElementNS(svgNS, "path");
       el.setAttribute("d", path);
-      const isFilled = !!state.daysMarked[dayKeys[i]];
+      const isFilled = dayKeys.length ? !!state.daysMarked[dayKeys[i]] : false;
       if (isFilled && WEEK_PLAN[i].type !== "rest") markedCount++;
       el.setAttribute("class", "ring-seg" + (isFilled ? " filled" : ""));
       g.appendChild(el);
@@ -94,28 +128,73 @@
   // ===== Today panel =====
 
   function renderToday() {
-    const day = WEEK_PLAN[todayIdx];
     const container = document.getElementById("todayContent");
-    document.getElementById("dateChip").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const dateKey = getSelectedDateKey();
+
+    // First-time setup: no program start date yet. Ask for one before
+    // showing any workout, since every cycle-day calculation depends on it.
+    if (!state.programStartDate) {
+      document.getElementById("dateChip").textContent = "";
+      container.innerHTML = `
+        <div class="program-setup">
+          <p class="program-setup-text">Set your Day 1 to start tracking your program cycle.</p>
+          <input type="date" id="programStartInput" class="date-picker-input" value="${escapeAttr(dateKey)}">
+          <button class="mark-day-btn" id="programStartSaveBtn">Set Day 1</button>
+        </div>`;
+      document.getElementById("programStartSaveBtn").addEventListener("click", () => {
+        const val = document.getElementById("programStartInput").value;
+        if (!val) return;
+        state.programStartDate = val;
+        state.selectedDate = val;
+        saveState();
+        renderAll();
+      });
+      return;
+    }
+
+    const cycleIdx = getCycleDayIndex(dateKey);
+    const dayNum = getCycleDayNumber(dateKey);
+
+    // Date picker + Day badge, shown above the workout regardless of type.
+    const pickerHTML = `
+      <div class="date-picker-row">
+        <input type="date" id="dateSelectInput" class="date-picker-input" value="${escapeAttr(dateKey)}" min="${escapeAttr(state.programStartDate)}">
+        ${dayNum !== null ? `<span class="day-number-badge">Day ${dayNum}</span>` : `<span class="day-number-badge day-number-badge-muted">Before Day 1</span>`}
+      </div>`;
+
+    document.getElementById("dateChip").textContent = new Date(dateKey + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+    if (cycleIdx === null) {
+      container.innerHTML = pickerHTML + `
+        <div class="today-rest">
+          <div class="today-rest-mark"></div>
+          <span class="today-rest-text">This date is before your program's Day 1.</span>
+        </div>`;
+      bindDatePicker();
+      return;
+    }
+
+    const day = WEEK_PLAN[cycleIdx];
 
     if (day.type === "rest") {
-      container.innerHTML = `
+      container.innerHTML = pickerHTML + `
         <div class="today-rest">
           <div class="today-rest-mark"></div>
           <span class="today-rest-text">${escapeHTML(day.title)} — recovery day</span>
         </div>`;
+      bindDatePicker();
       return;
     }
 
     const tagClass = day.type;
-    let html = `<span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>`;
+    let html = pickerHTML + `<span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>`;
 
     day.exercises.forEach((ex) => {
-      const exKey = `${todayKey}::${ex.name}`;
+      const exKey = `${dateKey}::${ex.name}`;
       const done = !!state.exercisesDone[exKey];
       const history = state.progressLog[ex.name] || [];
       const last = history[history.length - 1];
-      const todayEntry = history.find((h) => h.date === todayKey);
+      const todayEntry = history.find((h) => h.date === dateKey);
 
       html += `
         <div class="exercise-row">
@@ -129,10 +208,11 @@
         </div>`;
     });
 
-    const dayDone = !!state.daysMarked[todayKey];
+    const dayDone = !!state.daysMarked[dateKey];
     html += `<button class="mark-day-btn ${dayDone ? "marked" : ""}" id="markDayBtn">${dayDone ? "Workout logged ✓" : "Mark workout complete"}</button>`;
 
     container.innerHTML = html;
+    bindDatePicker();
 
     container.querySelectorAll(".ex-check").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -144,7 +224,7 @@
     });
 
     document.getElementById("markDayBtn").addEventListener("click", () => {
-      state.daysMarked[todayKey] = !state.daysMarked[todayKey];
+      state.daysMarked[dateKey] = !state.daysMarked[dateKey];
       saveState();
       renderToday();
       renderRing();
@@ -155,7 +235,7 @@
         const exName = btn.dataset.exname;
         const logType = btn.dataset.logtype;
         const row = btn.closest(".progress-input-row");
-        const entry = { date: todayKey };
+        const entry = { date: getSelectedDateKey() };
 
         if (logType === "weight") {
           const w = parseFloat(row.querySelector('[data-field="weight"]').value);
@@ -177,13 +257,25 @@
 
         if (!state.progressLog[exName]) state.progressLog[exName] = [];
         const list = state.progressLog[exName];
-        const existingIdx = list.findIndex((h) => h.date === todayKey);
+        const existingIdx = list.findIndex((h) => h.date === getSelectedDateKey());
         if (existingIdx >= 0) list[existingIdx] = entry;
         else list.push(entry);
 
         saveState();
         renderToday();
       });
+    });
+  }
+
+  function bindDatePicker() {
+    const input = document.getElementById("dateSelectInput");
+    if (!input) return;
+    input.addEventListener("change", () => {
+      if (!input.value) return;
+      state.selectedDate = input.value;
+      saveState();
+      renderToday();
+      renderRing();
     });
   }
 
@@ -263,7 +355,7 @@
         const delta = parseInt(btn.dataset.delta, 10);
         const cur = todayMacros();
         cur[key] = round1(Math.max(0, (cur[key] || 0) + delta));
-        state.macrosLogged[todayKey] = cur;
+        state.macrosLogged[getSelectedDateKey()] = cur;
         saveState();
         renderMacros();
       });
@@ -277,7 +369,7 @@
         if (isNaN(add) || add <= 0) return;
         const cur = todayMacros();
         cur[key] = round1(Math.max(0, (cur[key] || 0) + add));
-        state.macrosLogged[todayKey] = cur;
+        state.macrosLogged[getSelectedDateKey()] = cur;
         saveState();
         renderMacros();
       });
@@ -290,7 +382,7 @@
     const list = document.getElementById("mealList");
     list.innerHTML = "";
     MEALS.forEach((meal) => {
-      const key = `${todayKey}::${meal.id}`;
+      const key = `${getSelectedDateKey()}::${meal.id}`;
       const eaten = !!state.mealsEaten[key];
       const item = document.createElement("div");
       item.className = "meal-item" + (eaten ? " eaten" : "");
@@ -395,7 +487,7 @@
       cur.protein = round1((cur.protein || 0) + selectedFood.protein * qty);
       cur.fat = round1((cur.fat || 0) + selectedFood.fat * qty);
       cur.carbs = round1((cur.carbs || 0) + selectedFood.carbs * qty);
-      state.macrosLogged[todayKey] = cur;
+      state.macrosLogged[getSelectedDateKey()] = cur;
       saveState();
       renderMacros();
       setupQuickAdd_reattach();
@@ -536,7 +628,10 @@
     function showPage(pageName) {
       pages.forEach((p) => p.classList.toggle("active", p.dataset.page === pageName));
       links.forEach((l) => l.classList.toggle("active", l.dataset.page === pageName));
-      if (pageName === "records") renderRecords();
+      if (pageName === "records") {
+        recordsPage = 1;
+        renderRecords();
+      }
       document.querySelector(".layout").scrollTo?.(0, 0);
       window.scrollTo(0, 0);
     }
@@ -578,12 +673,7 @@
     return "reps";
   }
 
-  function renderRecords() {
-    const list = document.getElementById("recordsList");
-    const rangeVal = document.getElementById("recordsRangeFilter").value;
-    const typeVal = document.getElementById("recordsTypeFilter").value;
-
-    // Collect every date that has ANY logged data (macros, exercises, or day-mark).
+  function getAllLoggedDates() {
     const allDates = new Set([
       ...Object.keys(state.macrosLogged || {}),
       ...Object.keys(state.daysMarked || {}),
@@ -591,8 +681,112 @@
     Object.values(state.progressLog || {}).forEach((entries) => {
       entries.forEach((e) => allDates.add(e.date));
     });
+    return allDates;
+  }
 
-    let dates = Array.from(allDates).sort().reverse(); // newest first
+  function monthKeyOf(dateKey) {
+    return dateKey.slice(0, 7); // "YYYY-MM"
+  }
+
+  function monthLabelOf(monthKey) {
+    const d = new Date(monthKey + "-01T00:00:00");
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }
+
+  function buildDayCardHTML(dateKey) {
+    const cycleIdx = getCycleDayIndex(dateKey);
+    const plan = cycleIdx === null ? { type: "rest", title: "Before Day 1" } : WEEK_PLAN[cycleIdx];
+    const macros = state.macrosLogged[dateKey] || { protein: 0, fat: 0, carbs: 0 };
+    const kcal = Math.round(
+      (macros.protein || 0) * 4 + (macros.fat || 0) * 9 + (macros.carbs || 0) * 4
+    );
+
+    const dayExercises = [];
+    Object.keys(state.progressLog || {}).forEach((exName) => {
+      const entry = state.progressLog[exName].find((e) => e.date === dateKey);
+      if (entry) {
+        const logType = findExerciseLogType(exName);
+        dayExercises.push({ name: exName, detail: formatEntryShort(logType, entry) });
+      }
+    });
+
+    return `
+      <div class="record-card">
+        <div class="record-card-head">
+          <span class="record-date">${escapeHTML(formatDateLong(dateKey))}</span>
+          <span class="record-day-tag ${plan.type}">${escapeHTML(plan.title)}</span>
+        </div>
+        <div class="record-macros">
+          <div class="record-macro-cell">
+            <span class="record-macro-label">Kcal</span>
+            <span class="record-macro-value">${kcal}</span>
+          </div>
+          <div class="record-macro-cell">
+            <span class="record-macro-label">Protein</span>
+            <span class="record-macro-value">${macros.protein || 0}g</span>
+          </div>
+          <div class="record-macro-cell">
+            <span class="record-macro-label">Fat</span>
+            <span class="record-macro-value">${macros.fat || 0}g</span>
+          </div>
+          <div class="record-macro-cell">
+            <span class="record-macro-label">Carbs</span>
+            <span class="record-macro-value">${macros.carbs || 0}g</span>
+          </div>
+        </div>
+        <div class="record-exercises">
+          ${dayExercises.length
+            ? dayExercises.map((ex) => `
+              <div class="record-exercise-row">
+                <span class="record-exercise-name">${escapeHTML(ex.name)}</span>
+                <span class="record-exercise-detail">${escapeHTML(ex.detail)}</span>
+              </div>`).join("")
+            : `<span class="record-no-exercises">No workout logged this day</span>`}
+        </div>
+      </div>`;
+  }
+
+  function buildMonthCardHTML(monthKey, dayCount) {
+    return `
+      <div class="record-card record-month-card" data-month="${escapeAttr(monthKey)}" tabindex="0" role="button" aria-label="View ${escapeAttr(monthLabelOf(monthKey))} records">
+        <span class="record-month-name">${escapeHTML(monthLabelOf(monthKey))}</span>
+        <span class="record-month-count">${dayCount} day${dayCount === 1 ? "" : "s"} logged</span>
+        <span class="record-month-arrow">→</span>
+      </div>`;
+  }
+
+  const PAGE_SIZE = 5;
+  let recordsPage = 1;
+  let modalPage = 1;
+  let modalMonthKey = null;
+
+  function paginate(items, page) {
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    const clampedPage = Math.min(Math.max(1, page), totalPages);
+    const start = (clampedPage - 1) * PAGE_SIZE;
+    return {
+      pageItems: items.slice(start, start + PAGE_SIZE),
+      page: clampedPage,
+      totalPages,
+    };
+  }
+
+  function buildPaginationHTML(page, totalPages, targetId) {
+    if (totalPages <= 1) return "";
+    return `
+      <div class="records-pagination" data-target="${escapeAttr(targetId)}">
+        <button class="pagination-btn" data-dir="prev" ${page <= 1 ? "disabled" : ""} aria-label="Previous page">‹</button>
+        <span class="pagination-info">${page} / ${totalPages}</span>
+        <button class="pagination-btn" data-dir="next" ${page >= totalPages ? "disabled" : ""} aria-label="Next page">›</button>
+      </div>`;
+  }
+
+  function renderRecords() {
+    const list = document.getElementById("recordsList");
+    const rangeVal = document.getElementById("recordsRangeFilter").value;
+    const typeVal = document.getElementById("recordsTypeFilter").value;
+
+    let dates = Array.from(getAllLoggedDates()).sort().reverse(); // newest first
 
     if (rangeVal !== "all") {
       const cutoff = new Date();
@@ -603,8 +797,9 @@
 
     if (typeVal !== "all") {
       dates = dates.filter((d) => {
-        const dayIdx = new Date(d + "T00:00:00").getDay();
-        const planType = WEEK_PLAN[dayIdx].type;
+        const cycleIdx = getCycleDayIndex(d);
+        if (cycleIdx === null) return false;
+        const planType = WEEK_PLAN[cycleIdx].type;
         if (typeVal === "rest") return planType === "rest";
         return planType === typeVal;
       });
@@ -615,67 +810,108 @@
       return;
     }
 
-    list.innerHTML = dates.map((dateKey) => {
-      const dayIdx = new Date(dateKey + "T00:00:00").getDay();
-      const plan = WEEK_PLAN[dayIdx];
-      const macros = state.macrosLogged[dateKey] || { protein: 0, fat: 0, carbs: 0 };
-      const kcal = Math.round(
-        (macros.protein || 0) * 4 + (macros.fat || 0) * 9 + (macros.carbs || 0) * 4
-      );
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
 
-      // Gather this date's exercise entries from progressLog.
-      const dayExercises = [];
-      Object.keys(state.progressLog || {}).forEach((exName) => {
-        const entry = state.progressLog[exName].find((e) => e.date === dateKey);
-        if (entry) {
-          const logType = findExerciseLogType(exName);
-          dayExercises.push({ name: exName, detail: formatEntryShort(logType, entry) });
-        }
+    // Split into "this month" (shown as individual day-cards) vs "past months"
+    // (collapsed into one card per month, newest month first).
+    const currentMonthDates = dates.filter((d) => monthKeyOf(d) === currentMonthKey);
+    const pastDates = dates.filter((d) => monthKeyOf(d) !== currentMonthKey);
+
+    const pastMonthCounts = {}; // monthKey -> count
+    pastDates.forEach((d) => {
+      const mk = monthKeyOf(d);
+      pastMonthCounts[mk] = (pastMonthCounts[mk] || 0) + 1;
+    });
+    const pastMonthKeys = Object.keys(pastMonthCounts).sort().reverse();
+
+    const { pageItems, page, totalPages } = paginate(currentMonthDates, recordsPage);
+    recordsPage = page;
+
+    let html = "";
+    if (currentMonthDates.length > 0) {
+      html += pageItems.map(buildDayCardHTML).join("");
+      html += buildPaginationHTML(page, totalPages, "recordsList");
+    }
+    if (pastMonthKeys.length > 0) {
+      html += pastMonthKeys.map((mk) => buildMonthCardHTML(mk, pastMonthCounts[mk])).join("");
+    }
+    if (!html) {
+      html = `<div class="records-empty">No logs match this filter yet.</div>`;
+    }
+
+    list.innerHTML = html;
+
+    list.querySelectorAll(".record-month-card").forEach((card) => {
+      const open = () => openMonthModal(card.dataset.month);
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
       });
+    });
 
-      return `
-        <div class="record-card">
-          <div class="record-card-head">
-            <span class="record-date">${escapeHTML(formatDateLong(dateKey))}</span>
-            <span class="record-day-tag ${plan.type}">${escapeHTML(plan.title)}</span>
-          </div>
-          <div class="record-macros">
-            <div class="record-macro-cell">
-              <span class="record-macro-label">Kcal</span>
-              <span class="record-macro-value">${kcal}</span>
-            </div>
-            <div class="record-macro-cell">
-              <span class="record-macro-label">Protein</span>
-              <span class="record-macro-value">${macros.protein || 0}g</span>
-            </div>
-            <div class="record-macro-cell">
-              <span class="record-macro-label">Fat</span>
-              <span class="record-macro-value">${macros.fat || 0}g</span>
-            </div>
-            <div class="record-macro-cell">
-              <span class="record-macro-label">Carbs</span>
-              <span class="record-macro-value">${macros.carbs || 0}g</span>
-            </div>
-          </div>
-          <div class="record-exercises">
-            ${dayExercises.length
-              ? dayExercises.map((ex) => `
-                <div class="record-exercise-row">
-                  <span class="record-exercise-name">${escapeHTML(ex.name)}</span>
-                  <span class="record-exercise-detail">${escapeHTML(ex.detail)}</span>
-                </div>`).join("")
-              : `<span class="record-no-exercises">No workout logged this day</span>`}
-          </div>
-        </div>`;
-    }).join("");
+    bindPaginationControls(list, () => renderRecords());
+  }
+
+  function bindPaginationControls(container, onPageChange) {
+    container.querySelectorAll(".records-pagination").forEach((el) => {
+      el.querySelectorAll(".pagination-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const dir = btn.dataset.dir;
+          if (el.dataset.target === "recordsList") {
+            recordsPage += dir === "next" ? 1 : -1;
+          } else if (el.dataset.target === "modalList") {
+            modalPage += dir === "next" ? 1 : -1;
+          }
+          onPageChange();
+        });
+      });
+    });
+  }
+
+  function openMonthModal(monthKey) {
+    modalMonthKey = monthKey;
+    modalPage = 1;
+    document.getElementById("monthModalOverlay").classList.add("open");
+    document.getElementById("monthModalTitle").textContent = monthLabelOf(monthKey);
+    renderMonthModal();
+  }
+
+  function closeMonthModal() {
+    document.getElementById("monthModalOverlay").classList.remove("open");
+    modalMonthKey = null;
+  }
+
+  function renderMonthModal() {
+    if (!modalMonthKey) return;
+    const dates = Array.from(getAllLoggedDates())
+      .filter((d) => monthKeyOf(d) === modalMonthKey)
+      .sort()
+      .reverse();
+
+    const { pageItems, page, totalPages } = paginate(dates, modalPage);
+    modalPage = page;
+
+    const body = document.getElementById("monthModalBody");
+    body.innerHTML = pageItems.map(buildDayCardHTML).join("") + buildPaginationHTML(page, totalPages, "modalList");
+    bindPaginationControls(body, () => renderMonthModal());
   }
 
   let recordsFiltersBound = false;
   function setupRecordsFilters() {
     if (recordsFiltersBound) return;
     recordsFiltersBound = true;
-    document.getElementById("recordsRangeFilter").addEventListener("change", renderRecords);
-    document.getElementById("recordsTypeFilter").addEventListener("change", renderRecords);
+    document.getElementById("recordsRangeFilter").addEventListener("change", () => {
+      recordsPage = 1;
+      renderRecords();
+    });
+    document.getElementById("recordsTypeFilter").addEventListener("change", () => {
+      recordsPage = 1;
+      renderRecords();
+    });
+    document.getElementById("monthModalOverlay").addEventListener("click", (e) => {
+      if (e.target.id === "monthModalOverlay") closeMonthModal();
+    });
+    document.getElementById("monthModalClose").addEventListener("click", closeMonthModal);
   }
 
   // ===== Init =====

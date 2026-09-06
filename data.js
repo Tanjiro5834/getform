@@ -1,37 +1,37 @@
 // Static reference content — the plan itself doesn't change, only the logged state does.
 
 const WEEK_PLAN = {
-  0: { label: "Sun", type: "rest", title: "Rest", exercises: [] },
-  1: { label: "Mon", type: "upper", title: "Upper", exercises: [
+  0: { label: "Day 1", type: "upper", title: "Upper", exercises: [
       { name: "DB floor press", sets: "3 × 10–12", logType: "weight" },
       { name: "DB row (one arm, supported)", sets: "3 × 10–12/side", logType: "weight" },
       { name: "DB overhead press", sets: "3 × 10–12", logType: "weight" },
       { name: "DB curl", sets: "2 × 12–15", logType: "weight" },
       { name: "DB skull crusher / kickback", sets: "2 × 12–15", logType: "weight" },
     ] },
-  2: { label: "Tue", type: "lower", title: "Lower", exercises: [
+  1: { label: "Day 2", type: "lower", title: "Lower", exercises: [
       { name: "Goblet squat", sets: "3 × 12–15", logType: "weight" },
       { name: "DB Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
       { name: "Bulgarian split squat", sets: "3 × 10/leg", logType: "weight" },
       { name: "Walking lunges", sets: "3 × 10/leg", logType: "weight" },
       { name: "Calf raises (DB)", sets: "3 × 15–20", logType: "weight" },
     ] },
-  3: { label: "Wed", type: "rest", title: "Rest", exercises: [] },
-  4: { label: "Thu", type: "upper", title: "Upper", exercises: [
+  2: { label: "Day 3", type: "rest", title: "Rest", exercises: [] },
+  3: { label: "Day 4", type: "upper", title: "Upper", exercises: [
       { name: "DB floor press", sets: "3 × 10–12", logType: "weight" },
       { name: "DB row (one arm, supported)", sets: "3 × 10–12/side", logType: "weight" },
       { name: "DB overhead press", sets: "3 × 10–12", logType: "weight" },
       { name: "DB curl", sets: "2 × 12–15", logType: "weight" },
       { name: "DB skull crusher / kickback", sets: "2 × 12–15", logType: "weight" },
     ] },
-  5: { label: "Fri", type: "lower", title: "Lower", exercises: [
+  4: { label: "Day 5", type: "lower", title: "Lower", exercises: [
       { name: "Goblet squat", sets: "3 × 12–15", logType: "weight" },
       { name: "DB Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
       { name: "Bulgarian split squat", sets: "3 × 10/leg", logType: "weight" },
       { name: "Walking lunges", sets: "3 × 10/leg", logType: "weight" },
       { name: "Calf raises (DB)", sets: "3 × 15–20", logType: "weight" },
     ] },
-  6: { label: "Sat", type: "rest", title: "Rest / light cardio", exercises: [] },
+  5: { label: "Day 6", type: "rest", title: "Rest", exercises: [] },
+  6: { label: "Day 7", type: "rest", title: "Rest / light cardio", exercises: [] },
 };
 
 const MACRO_TARGETS = [
