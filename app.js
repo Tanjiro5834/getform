@@ -25,16 +25,21 @@
     return state.selectedDate || new Date().toISOString().slice(0, 10);
   }
 
-  // Cycle position (0-6) for a given date, counted from programStartDate.
+  // Cycle position (0-indexed) for a given date, counted from programStartDate.
   // Day 1 of the program = index 0 = WEEK_PLAN[0]. Returns null if no
-  // program start date has been set yet.
+  // program start date has been set yet. Cycle length is however many days
+  // are actually defined in WEEK_PLAN, not a fixed 7.
+  function getCycleLength() {
+    return Object.keys(WEEK_PLAN).length;
+  }
+
   function getCycleDayIndex(dateKey) {
     if (!state.programStartDate) return null;
     const start = new Date(state.programStartDate + "T00:00:00");
     const target = new Date(dateKey + "T00:00:00");
     const diffDays = Math.round((target - start) / 86400000);
     if (diffDays < 0) return null; // date is before the program even started
-    return diffDays % 7;
+    return diffDays % getCycleLength();
   }
 
   function getCycleDayNumber(dateKey) {
@@ -77,7 +82,7 @@
     const g = document.getElementById("ringSegments");
     g.innerHTML = "";
     const cx = 60, cy = 60, r = 50;
-    const segCount = 7;
+    const segCount = getCycleLength();
     const gapDeg = 6;
     const segDeg = 360 / segCount - gapDeg;
 
@@ -85,17 +90,17 @@
     let dayKeys = [];
 
     if (state.programStartDate) {
-      // Find which 7-day cycle the selected date falls into, then list
-      // that cycle's 7 dates (cycle 0 = programStartDate..+6, etc.).
+      // Find which cycle the selected date falls into, then list that
+      // cycle's dates (cycle 0 = programStartDate..+cycleLength-1, etc.).
       const dateKey = getSelectedDateKey();
       const cycleIdx = getCycleDayIndex(dateKey);
       const start = new Date(state.programStartDate + "T00:00:00");
       const target = new Date(dateKey + "T00:00:00");
       const diffDays = Math.max(0, Math.round((target - start) / 86400000));
-      const cycleNumber = cycleIdx === null ? 0 : Math.floor(diffDays / 7);
+      const cycleNumber = cycleIdx === null ? 0 : Math.floor(diffDays / segCount);
       const cycleStart = new Date(start);
-      cycleStart.setDate(start.getDate() + cycleNumber * 7);
-      for (let i = 0; i < 7; i++) {
+      cycleStart.setDate(start.getDate() + cycleNumber * segCount);
+      for (let i = 0; i < segCount; i++) {
         const dd = new Date(cycleStart);
         dd.setDate(cycleStart.getDate() + i);
         dayKeys.push(dd.toISOString().slice(0, 10));
@@ -158,7 +163,9 @@
     // Date picker + Day badge, shown above the workout regardless of type.
     const pickerHTML = `
       <div class="date-picker-row">
+        <button class="date-step-btn" id="datePrevBtn" aria-label="Previous day">‹</button>
         <input type="date" id="dateSelectInput" class="date-picker-input" value="${escapeAttr(dateKey)}" min="${escapeAttr(state.programStartDate)}">
+        <button class="date-step-btn" id="dateNextBtn" aria-label="Next day">›</button>
         ${dayNum !== null ? `<span class="day-number-badge">Day ${dayNum}</span>` : `<span class="day-number-badge day-number-badge-muted">Before Day 1</span>`}
       </div>`;
 
@@ -237,19 +244,31 @@
         const row = btn.closest(".progress-input-row");
         const entry = { date: getSelectedDateKey() };
 
+        function flagInvalid(fieldEl) {
+          fieldEl.classList.add("progress-input-error");
+          fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
+        }
+
         if (logType === "weight") {
-          const w = parseFloat(row.querySelector('[data-field="weight"]').value);
-          const r = parseInt(row.querySelector('[data-field="reps"]').value, 10);
-          if (isNaN(w) || isNaN(r)) return;
+          const weightEl = row.querySelector('[data-field="weight"]');
+          const repsEl = row.querySelector('[data-field="reps"]');
+          const w = parseFloat(weightEl.value);
+          const r = parseInt(repsEl.value, 10);
+          let bad = false;
+          if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
+          if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
+          if (bad) return;
           entry.weight = w;
           entry.reps = r;
         } else if (logType === "reps") {
-          const r = parseInt(row.querySelector('[data-field="reps"]').value, 10);
-          if (isNaN(r)) return;
+          const repsEl = row.querySelector('[data-field="reps"]');
+          const r = parseInt(repsEl.value, 10);
+          if (isNaN(r)) { flagInvalid(repsEl); return; }
           entry.reps = r;
         } else if (logType === "duration") {
-          const m = parseFloat(row.querySelector('[data-field="minutes"]').value);
-          if (isNaN(m)) return;
+          const minutesEl = row.querySelector('[data-field="minutes"]');
+          const m = parseFloat(minutesEl.value);
+          if (isNaN(m)) { flagInvalid(minutesEl); return; }
           entry.minutes = m;
           const noteEl = row.querySelector('[data-field="note"]');
           if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
@@ -270,13 +289,32 @@
   function bindDatePicker() {
     const input = document.getElementById("dateSelectInput");
     if (!input) return;
-    input.addEventListener("change", () => {
-      if (!input.value) return;
-      state.selectedDate = input.value;
+
+    function setDate(dateKey) {
+      state.selectedDate = dateKey;
       saveState();
       renderToday();
       renderRing();
+    }
+
+    input.addEventListener("change", () => {
+      if (!input.value) return;
+      setDate(input.value);
     });
+
+    const prevBtn = document.getElementById("datePrevBtn");
+    const nextBtn = document.getElementById("dateNextBtn");
+
+    function shiftDate(deltaDays) {
+      const d = new Date(input.value + "T00:00:00");
+      d.setDate(d.getDate() + deltaDays);
+      const nextKey = d.toISOString().slice(0, 10);
+      if (nextKey < state.programStartDate) return; // don't go before Day 1
+      setDate(nextKey);
+    }
+
+    if (prevBtn) prevBtn.addEventListener("click", () => shiftDate(-1));
+    if (nextBtn) nextBtn.addEventListener("click", () => shiftDate(1));
   }
 
   function renderProgressInput(ex, todayEntry) {

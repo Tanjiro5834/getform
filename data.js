@@ -11,32 +11,21 @@ const WEEK_PLAN = {
       { name: "Single-leg RDL (bodyweight)", sets: "3 × 10/leg", logType: "reps" },
       { name: "Calf raises (barbell on shoulders)", sets: "3 × 15–20", logType: "weight" },
     ] },
-  1: { label: "Day 2", type: "cardio", title: "Treadmill", exercises: [
-      { name: "Treadmill — steady state or intervals", sets: "20–30 min", logType: "duration" },
-    ] },
-  2: { label: "Day 3", type: "upper", title: "Upper (pull)", exercises: [
+  1: { label: "Day 2", type: "upper", title: "Upper (pull)", exercises: [
       { name: "Barbell row", sets: "3 × 10–12", logType: "weight" },
       { name: "Superman hold / back extension", sets: "3 × 12–15", logType: "reps" },
       { name: "Barbell curl", sets: "2 × 12–15", logType: "weight" },
       { name: "Doorway/table inverted row", sets: "3 × 8–12", logType: "reps" },
     ] },
-  3: { label: "Day 4", type: "lower", title: "Lower (squat)", exercises: [
+  2: { label: "Day 3", type: "lower", title: "Lower (squat)", exercises: [
       { name: "Barbell/goblet squat", sets: "3 × 12–15", logType: "weight" },
       { name: "Bulgarian split squat (bodyweight or barbell)", sets: "3 × 10/leg", logType: "reps" },
       { name: "Walking lunges", sets: "3 × 10/leg", logType: "reps" },
       { name: "Wall sit", sets: "3 × 30–45s", logType: "reps" },
     ] },
-  4: { label: "Day 5", type: "cardio", title: "Treadmill / light cardio", exercises: [
-      { name: "Treadmill — easy pace", sets: "20–30 min", logType: "duration" },
+  3: { label: "Day 4", type: "cardio", title: "Treadmill", exercises: [
+      { name: "Treadmill — steady state or intervals", sets: "20–30 min", logType: "duration" },
     ] },
-  5: { label: "Day 6", type: "upper", title: "Upper (push)", exercises: [
-      { name: "Push-ups", sets: "3 × AMRAP", logType: "reps" },
-      { name: "Pike push-ups", sets: "3 × 8–12", logType: "reps" },
-      { name: "Barbell overhead press", sets: "3 × 8–12", logType: "weight" },
-      { name: "Barbell floor press", sets: "3 × 10–12", logType: "weight" },
-      { name: "Dips (chair/bench)", sets: "3 × 10–15", logType: "reps" },
-    ] },
-  6: { label: "Day 7", type: "rest", title: "Rest", exercises: [] },
 };
 
 const MACRO_TARGETS = [
