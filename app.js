@@ -5,46 +5,22 @@
 
   function defaultState() {
     return {
-      exercisesDone: {},     // "YYYY-MM-DD::exerciseName" -> true
-      daysMarked: {},        // "YYYY-MM-DD" -> true (day fully logged)
-      macrosLogged: {},      // "YYYY-MM-DD" -> { protein, fat, carbs } (grams)
+      macrosLogged: {},      // "YYYY-MM-DD" -> { protein, fat, carbs } (grams) — still date-based
       mealsEaten: {},        // "YYYY-MM-DD::mealId" -> true
       weekLog: [],           // [{ week, weight, notes }]
-      progressLog: {},       // "exerciseName" -> [{ date, weight?, reps?, minutes?, note? }]
-      programStartDate: null, // "YYYY-MM-DD" — Day 1 anchor, set once by the user
-      selectedDate: null,     // "YYYY-MM-DD" — the date currently being logged/viewed
+      // Workouts are now manual/date-free: the user picks which of the 4
+      // plan days to log whenever they want, no calendar cycle involved.
+      workoutDayDone: {},     // dayIndex (0-3) -> true, manually toggled
+      workoutProgress: {},    // dayIndex -> { exerciseName -> {weight?, reps?, minutes?, note?, loggedAt} }
+      progressHistory: {},    // exerciseName -> [{ date, weight?, reps?, minutes?, note? }] — kept for Records
+      selectedWorkoutDay: 0,  // which WEEK_PLAN day index is currently open on the Workouts page
     };
   }
 
   let state = loadState();
 
-  // The date the user is actively logging against. Falls back to real "today"
-  // only until a program start date exists, so a first-time user still sees
-  // something sensible before they've set anything up.
   function getSelectedDateKey() {
-    return state.selectedDate || new Date().toISOString().slice(0, 10);
-  }
-
-  // Cycle position (0-indexed) for a given date, counted from programStartDate.
-  // Day 1 of the program = index 0 = WEEK_PLAN[0]. Returns null if no
-  // program start date has been set yet. Cycle length is however many days
-  // are actually defined in WEEK_PLAN, not a fixed 7.
-  function getCycleLength() {
-    return Object.keys(WEEK_PLAN).length;
-  }
-
-  function getCycleDayIndex(dateKey) {
-    if (!state.programStartDate) return null;
-    const start = new Date(state.programStartDate + "T00:00:00");
-    const target = new Date(dateKey + "T00:00:00");
-    const diffDays = Math.round((target - start) / 86400000);
-    if (diffDays < 0) return null; // date is before the program even started
-    return diffDays % getCycleLength();
-  }
-
-  function getCycleDayNumber(dateKey) {
-    const idx = getCycleDayIndex(dateKey);
-    return idx === null ? null : idx + 1; // display as 1-indexed "Day 3"
+    return new Date().toISOString().slice(0, 10);
   }
 
   function loadState() {
@@ -75,52 +51,33 @@
     return state.macrosLogged[getSelectedDateKey()] || { protein: 0, fat: 0, carbs: 0 };
   }
 
-  // ===== Program cycle ring =====
+  // ===== Workout completion ring =====
+  // Counts how many of the 4 plan days are currently marked done. This is
+  // a manual, non-resetting tally — not tied to any calendar cycle.
 
   function renderRing() {
     const svgNS = "http://www.w3.org/2000/svg";
     const g = document.getElementById("ringSegments");
     g.innerHTML = "";
     const cx = 60, cy = 60, r = 50;
-    const segCount = getCycleLength();
+    const dayKeys = Object.keys(WEEK_PLAN);
+    const segCount = dayKeys.length;
     const gapDeg = 6;
     const segDeg = 360 / segCount - gapDeg;
 
     let markedCount = 0;
-    let dayKeys = [];
 
-    if (state.programStartDate) {
-      // Find which cycle *today's real date* falls into, then list that
-      // cycle's dates (cycle 0 = programStartDate..+cycleLength-1, etc.).
-      // This is intentionally independent of whatever date the user has
-      // selected for logging on the Today page — the ring always reflects
-      // the actual current cycle, not a backfilled one.
-      const realTodayKey = new Date().toISOString().slice(0, 10);
-      const cycleIdx = getCycleDayIndex(realTodayKey);
-      const start = new Date(state.programStartDate + "T00:00:00");
-      const target = new Date(realTodayKey + "T00:00:00");
-      const diffDays = Math.max(0, Math.round((target - start) / 86400000));
-      const cycleNumber = cycleIdx === null ? 0 : Math.floor(diffDays / segCount);
-      const cycleStart = new Date(start);
-      cycleStart.setDate(start.getDate() + cycleNumber * segCount);
-      for (let i = 0; i < segCount; i++) {
-        const dd = new Date(cycleStart);
-        dd.setDate(cycleStart.getDate() + i);
-        dayKeys.push(dd.toISOString().slice(0, 10));
-      }
-    }
-
-    for (let i = 0; i < segCount; i++) {
+    dayKeys.forEach((dayIdx, i) => {
       const startAngle = i * (segDeg + gapDeg);
       const endAngle = startAngle + segDeg;
       const path = describeArc(cx, cy, r, startAngle, endAngle);
       const el = document.createElementNS(svgNS, "path");
       el.setAttribute("d", path);
-      const isFilled = dayKeys.length ? !!state.daysMarked[dayKeys[i]] : false;
-      if (isFilled && WEEK_PLAN[i].type !== "rest") markedCount++;
+      const isFilled = !!state.workoutDayDone[dayIdx];
+      if (isFilled && WEEK_PLAN[dayIdx].type !== "rest") markedCount++;
       el.setAttribute("class", "ring-seg" + (isFilled ? " filled" : ""));
       g.appendChild(el);
-    }
+    });
 
     document.getElementById("ringCount").textContent = markedCount;
   }
@@ -137,187 +94,128 @@
 
   function renderToday() {
     const container = document.getElementById("todayContent");
-    const dateKey = getSelectedDateKey();
+    document.getElementById("dateChip").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
-    // First-time setup: no program start date yet. Ask for one before
-    // showing any workout, since every cycle-day calculation depends on it.
-    if (!state.programStartDate) {
-      document.getElementById("dateChip").textContent = "";
-      container.innerHTML = `
-        <div class="program-setup">
-          <p class="program-setup-text">Set your Day 1 to start tracking your program cycle.</p>
-          <input type="date" id="programStartInput" class="date-picker-input" value="${escapeAttr(dateKey)}">
-          <button class="mark-day-btn" id="programStartSaveBtn">Set Day 1</button>
-        </div>`;
-      document.getElementById("programStartSaveBtn").addEventListener("click", () => {
-        const val = document.getElementById("programStartInput").value;
-        if (!val) return;
-        state.programStartDate = val;
-        state.selectedDate = val;
-        saveState();
-        renderAll();
-      });
-      return;
-    }
+    const dayIndexes = Object.keys(WEEK_PLAN);
+    const activeDay = String(state.selectedWorkoutDay);
 
-    const cycleIdx = getCycleDayIndex(dateKey);
-    const dayNum = getCycleDayNumber(dateKey);
-
-    // Date picker + Day badge, shown above the workout regardless of type.
-    const pickerHTML = `
-      <div class="date-picker-row">
-        <button class="date-step-btn" id="datePrevBtn" aria-label="Previous day">‹</button>
-        <input type="date" id="dateSelectInput" class="date-picker-input" value="${escapeAttr(dateKey)}" min="${escapeAttr(state.programStartDate)}">
-        <button class="date-step-btn" id="dateNextBtn" aria-label="Next day">›</button>
-        ${dayNum !== null ? `<span class="day-number-badge">Day ${dayNum}</span>` : `<span class="day-number-badge day-number-badge-muted">Before Day 1</span>`}
-      </div>`;
-
-    document.getElementById("dateChip").textContent = new Date(dateKey + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-
-    if (cycleIdx === null) {
-      container.innerHTML = pickerHTML + `
-        <div class="today-rest">
-          <div class="today-rest-mark"></div>
-          <span class="today-rest-text">This date is before your program's Day 1.</span>
-        </div>`;
-      bindDatePicker();
-      return;
-    }
-
-    const day = WEEK_PLAN[cycleIdx];
-
-    if (day.type === "rest") {
-      container.innerHTML = pickerHTML + `
-        <div class="today-rest">
-          <div class="today-rest-mark"></div>
-          <span class="today-rest-text">${escapeHTML(day.title)} — recovery day</span>
-        </div>`;
-      bindDatePicker();
-      return;
-    }
-
-    const tagClass = day.type;
-    let html = pickerHTML + `<span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>`;
-
-    day.exercises.forEach((ex) => {
-      const exKey = `${dateKey}::${ex.name}`;
-      const done = !!state.exercisesDone[exKey];
-      const history = state.progressLog[ex.name] || [];
-      const last = history[history.length - 1];
-      const todayEntry = history.find((h) => h.date === dateKey);
-
+    // List of all 4 plan days — tap one to open it below.
+    let html = `<div class="workout-day-list">`;
+    dayIndexes.forEach((dayIdx) => {
+      const day = WEEK_PLAN[dayIdx];
+      const done = !!state.workoutDayDone[dayIdx];
+      const isOpen = dayIdx === activeDay;
       html += `
-        <div class="exercise-row">
-          <button class="ex-check ${done ? "done" : ""}" data-exkey="${escapeAttr(exKey)}" aria-label="Mark ${escapeAttr(ex.name)} done"></button>
-          <div class="ex-info">
-            <span class="ex-name ${done ? "done" : ""}">${escapeHTML(ex.name)}</span>
-            <span class="ex-sets">${escapeHTML(ex.sets)}</span>
-            ${renderProgressInput(ex, todayEntry)}
-            ${last ? `<span class="ex-last">Last: ${escapeHTML(formatEntry(ex.logType, last))} (${formatDateShort(last.date)})</span>` : ""}
-          </div>
-        </div>`;
+        <button class="workout-day-pill ${isOpen ? "open" : ""} ${done ? "done" : ""}" data-dayidx="${escapeAttr(dayIdx)}">
+          <span class="workout-day-pill-name ${done ? "done" : ""}">${escapeHTML(day.label)} — ${escapeHTML(day.title)}</span>
+          ${done ? `<span class="workout-day-pill-check">✓</span>` : ""}
+        </button>`;
     });
+    html += `</div>`;
 
-    const dayDone = !!state.daysMarked[dateKey];
-    html += `<button class="mark-day-btn ${dayDone ? "marked" : ""}" id="markDayBtn">${dayDone ? "Workout logged ✓" : "Mark workout complete"}</button>`;
+    // Detail view for whichever day is currently open.
+    const day = WEEK_PLAN[activeDay];
+    if (day) {
+      const tagClass = day.type;
+      html += `<div class="workout-day-detail">`;
+      html += `<span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>`;
+
+      const dayProgress = state.workoutProgress[activeDay] || {};
+
+      day.exercises.forEach((ex) => {
+        const savedEntry = dayProgress[ex.name];
+        const history = state.progressHistory[ex.name] || [];
+        const last = history[history.length - 1];
+
+        html += `
+          <div class="exercise-row">
+            <div class="ex-info">
+              <span class="ex-name">${escapeHTML(ex.name)}</span>
+              <span class="ex-sets">${escapeHTML(ex.sets)}</span>
+              ${renderProgressInput(ex, savedEntry)}
+              ${last ? `<span class="ex-last">Last: ${escapeHTML(formatEntry(ex.logType, last))} (${formatDateShort(last.date)})</span>` : ""}
+            </div>
+          </div>`;
+      });
+
+      const dayDone = !!state.workoutDayDone[activeDay];
+      html += `<button class="mark-day-btn ${dayDone ? "marked" : ""}" id="markDayBtn">${dayDone ? "Workout logged ✓ (tap to undo)" : "Mark workout complete"}</button>`;
+      html += `</div>`;
+    }
 
     container.innerHTML = html;
-    bindDatePicker();
 
-    container.querySelectorAll(".ex-check").forEach((btn) => {
+    container.querySelectorAll(".workout-day-pill").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const key = btn.dataset.exkey;
-        state.exercisesDone[key] = !state.exercisesDone[key];
+        state.selectedWorkoutDay = parseInt(btn.dataset.dayidx, 10);
         saveState();
         renderToday();
       });
     });
 
-    document.getElementById("markDayBtn").addEventListener("click", () => {
-      state.daysMarked[dateKey] = !state.daysMarked[dateKey];
-      saveState();
-      renderToday();
-      renderRing();
-    });
-
-    container.querySelectorAll(".progress-save-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const exName = btn.dataset.exname;
-        const logType = btn.dataset.logtype;
-        const row = btn.closest(".progress-input-row");
-        const entry = { date: getSelectedDateKey() };
-
-        function flagInvalid(fieldEl) {
-          fieldEl.classList.add("progress-input-error");
-          fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
-        }
-
-        if (logType === "weight") {
-          const weightEl = row.querySelector('[data-field="weight"]');
-          const repsEl = row.querySelector('[data-field="reps"]');
-          const w = parseFloat(weightEl.value);
-          const r = parseInt(repsEl.value, 10);
-          let bad = false;
-          if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
-          if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
-          if (bad) return;
-          entry.weight = w;
-          entry.reps = r;
-        } else if (logType === "reps") {
-          const repsEl = row.querySelector('[data-field="reps"]');
-          const r = parseInt(repsEl.value, 10);
-          if (isNaN(r)) { flagInvalid(repsEl); return; }
-          entry.reps = r;
-        } else if (logType === "duration") {
-          const minutesEl = row.querySelector('[data-field="minutes"]');
-          const m = parseFloat(minutesEl.value);
-          if (isNaN(m)) { flagInvalid(minutesEl); return; }
-          entry.minutes = m;
-          const noteEl = row.querySelector('[data-field="note"]');
-          if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
-        }
-
-        if (!state.progressLog[exName]) state.progressLog[exName] = [];
-        const list = state.progressLog[exName];
-        const existingIdx = list.findIndex((h) => h.date === getSelectedDateKey());
-        if (existingIdx >= 0) list[existingIdx] = entry;
-        else list.push(entry);
-
+    if (day) {
+      document.getElementById("markDayBtn").addEventListener("click", () => {
+        state.workoutDayDone[activeDay] = !state.workoutDayDone[activeDay];
         saveState();
         renderToday();
+        renderRing();
       });
-    });
-  }
 
-  function bindDatePicker() {
-    const input = document.getElementById("dateSelectInput");
-    if (!input) return;
+      container.querySelectorAll(".progress-save-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const exName = btn.dataset.exname;
+          const logType = btn.dataset.logtype;
+          const row = btn.closest(".progress-input-row");
+          const todayDateKey = getSelectedDateKey();
+          const entry = { date: todayDateKey };
 
-    function setDate(dateKey) {
-      state.selectedDate = dateKey;
-      saveState();
-      renderToday();
-      renderRing();
+          function flagInvalid(fieldEl) {
+            fieldEl.classList.add("progress-input-error");
+            fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
+          }
+
+          if (logType === "weight") {
+            const weightEl = row.querySelector('[data-field="weight"]');
+            const repsEl = row.querySelector('[data-field="reps"]');
+            const w = parseFloat(weightEl.value);
+            const r = parseInt(repsEl.value, 10);
+            let bad = false;
+            if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
+            if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
+            if (bad) return;
+            entry.weight = w;
+            entry.reps = r;
+          } else if (logType === "reps") {
+            const repsEl = row.querySelector('[data-field="reps"]');
+            const r = parseInt(repsEl.value, 10);
+            if (isNaN(r)) { flagInvalid(repsEl); return; }
+            entry.reps = r;
+          } else if (logType === "duration") {
+            const minutesEl = row.querySelector('[data-field="minutes"]');
+            const m = parseFloat(minutesEl.value);
+            if (isNaN(m)) { flagInvalid(minutesEl); return; }
+            entry.minutes = m;
+            const noteEl = row.querySelector('[data-field="note"]');
+            if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
+          }
+
+          // Save as this day's current progress (date-free, manual system).
+          if (!state.workoutProgress[activeDay]) state.workoutProgress[activeDay] = {};
+          state.workoutProgress[activeDay][exName] = entry;
+
+          // Also append to progressHistory (keyed by real date) so Records
+          // still has an accurate log of what happened on which calendar day.
+          if (!state.progressHistory[exName]) state.progressHistory[exName] = [];
+          const histList = state.progressHistory[exName];
+          const existingIdx = histList.findIndex((h) => h.date === todayDateKey);
+          if (existingIdx >= 0) histList[existingIdx] = entry;
+          else histList.push(entry);
+
+          saveState();
+          renderToday();
+        });
+      });
     }
-
-    input.addEventListener("change", () => {
-      if (!input.value) return;
-      setDate(input.value);
-    });
-
-    const prevBtn = document.getElementById("datePrevBtn");
-    const nextBtn = document.getElementById("dateNextBtn");
-
-    function shiftDate(deltaDays) {
-      const d = new Date(input.value + "T00:00:00");
-      d.setDate(d.getDate() + deltaDays);
-      const nextKey = d.toISOString().slice(0, 10);
-      if (nextKey < state.programStartDate) return; // don't go before Day 1
-      setDate(nextKey);
-    }
-
-    if (prevBtn) prevBtn.addEventListener("click", () => shiftDate(-1));
-    if (nextBtn) nextBtn.addEventListener("click", () => shiftDate(1));
   }
 
   function renderProgressInput(ex, todayEntry) {
@@ -714,12 +612,19 @@
     return "reps";
   }
 
+  function findExerciseType(exName) {
+    for (const dayIdx in WEEK_PLAN) {
+      const found = (WEEK_PLAN[dayIdx].exercises || []).find((e) => e.name === exName);
+      if (found) return WEEK_PLAN[dayIdx].type;
+    }
+    return null;
+  }
+
   function getAllLoggedDates() {
     const allDates = new Set([
       ...Object.keys(state.macrosLogged || {}),
-      ...Object.keys(state.daysMarked || {}),
     ]);
-    Object.values(state.progressLog || {}).forEach((entries) => {
+    Object.values(state.progressHistory || {}).forEach((entries) => {
       entries.forEach((e) => allDates.add(e.date));
     });
     return allDates;
@@ -735,16 +640,14 @@
   }
 
   function buildDayCardHTML(dateKey) {
-    const cycleIdx = getCycleDayIndex(dateKey);
-    const plan = cycleIdx === null ? { type: "rest", title: "Before Day 1" } : WEEK_PLAN[cycleIdx];
     const macros = state.macrosLogged[dateKey] || { protein: 0, fat: 0, carbs: 0 };
     const kcal = Math.round(
       (macros.protein || 0) * 4 + (macros.fat || 0) * 9 + (macros.carbs || 0) * 4
     );
 
     const dayExercises = [];
-    Object.keys(state.progressLog || {}).forEach((exName) => {
-      const entry = state.progressLog[exName].find((e) => e.date === dateKey);
+    Object.keys(state.progressHistory || {}).forEach((exName) => {
+      const entry = state.progressHistory[exName].find((e) => e.date === dateKey);
       if (entry) {
         const logType = findExerciseLogType(exName);
         dayExercises.push({ name: exName, detail: formatEntryShort(logType, entry) });
@@ -755,7 +658,6 @@
       <div class="record-card">
         <div class="record-card-head">
           <span class="record-date">${escapeHTML(formatDateLong(dateKey))}</span>
-          <span class="record-day-tag ${plan.type}">${escapeHTML(plan.title)}</span>
         </div>
         <div class="record-macros">
           <div class="record-macro-cell">
@@ -838,11 +740,14 @@
 
     if (typeVal !== "all") {
       dates = dates.filter((d) => {
-        const cycleIdx = getCycleDayIndex(d);
-        if (cycleIdx === null) return false;
-        const planType = WEEK_PLAN[cycleIdx].type;
-        if (typeVal === "rest") return planType === "rest";
-        return planType === typeVal;
+        // Under manual logging, a date's "type" is whatever exercise types
+        // were actually logged that day — not a fixed cycle position.
+        return Object.keys(state.progressHistory || {}).some((exName) => {
+          const entry = state.progressHistory[exName].find((e) => e.date === d);
+          if (!entry) return false;
+          const exType = findExerciseType(exName);
+          return exType === typeVal;
+        });
       });
     }
 

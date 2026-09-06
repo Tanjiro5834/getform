@@ -314,6 +314,69 @@ button { font-family: inherit; }
 
 /* ===== Today panel ===== */
 
+.workout-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.workout-day-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.workout-day-pill:hover { border-color: var(--sage); }
+.workout-day-pill:active { transform: scale(0.99); }
+
+.workout-day-pill.open {
+  background: var(--sage-dim);
+  border-color: var(--sage);
+}
+
+.workout-day-pill.done {
+  background: var(--paper-raised);
+  border-color: var(--line);
+}
+
+.workout-day-pill.done.open {
+  background: var(--sage-dim);
+  border-color: var(--sage);
+}
+
+.workout-day-pill-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.workout-day-pill-name.done {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+.workout-day-pill-check {
+  color: var(--sage);
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.workout-day-detail {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
 .today-rest {
   display: flex;
   align-items: center;
