@@ -14,6 +14,8 @@
       workoutProgress: {},    // dayIndex -> { exerciseName -> {weight?, reps?, minutes?, note?, loggedAt} }
       progressHistory: {},    // exerciseName -> [{ date, weight?, reps?, minutes?, note? }] — kept for Records
       selectedWorkoutDay: 0,  // which WEEK_PLAN day index is currently open on the Workouts page
+      workoutLogDate: null,   // "YYYY-MM-DD" — which date new workout logs get tagged with; defaults to real today
+      editingDay: null,       // dayIndex currently in edit mode, or null
     };
   }
 
@@ -22,6 +24,14 @@
 
   function getSelectedDateKey() {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  // The date new workout logs get tagged with. Defaults to real today, but
+  // the user can pick an earlier date (e.g. backfilling from Sep 1) via the
+  // date picker on the Workouts page. This never affects Macros/Records'
+  // own "today" — only where new exercise entries land in progressHistory.
+  function getWorkoutLogDateKey() {
+    return state.workoutLogDate || getSelectedDateKey();
   }
 
   function loadState() {
@@ -124,9 +134,18 @@
 
     const dayIndexes = Object.keys(WEEK_PLAN);
     const activeDay = String(state.selectedWorkoutDay);
+    const logDateKey = getWorkoutLogDateKey();
+
+    // Date picker: sets which date NEW logs on this page get tagged with.
+    // Does not change which plan day is shown — that's still manual below.
+    let html = `
+      <div class="log-date-row">
+        <label class="log-date-label" for="workoutLogDateInput">Logging for date:</label>
+        <input type="date" id="workoutLogDateInput" class="date-picker-input" value="${escapeAttr(logDateKey)}">
+      </div>`;
 
     // List of all 4 plan days — tap one to open it below.
-    let html = `<div class="workout-day-list">`;
+    html += `<div class="workout-day-list">`;
     dayIndexes.forEach((dayIdx) => {
       const day = WEEK_PLAN[dayIdx];
       const done = !!state.workoutDayDone[dayIdx];
@@ -144,104 +163,246 @@
     if (day) {
       const tagClass = day.type;
       html += `<div class="workout-day-detail">`;
-      html += `<span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>`;
+      html += `
+        <div class="workout-day-detail-head">
+          <span class="day-focus-tag ${tagClass}">${escapeHTML(day.title)}</span>
+          <button class="edit-day-btn" id="editDayBtn">${state.editingDay === activeDay ? "Done editing" : "Edit logs"}</button>
+        </div>`;
 
       const dayProgress = state.workoutProgress[activeDay] || {};
+      const isEditing = state.editingDay === activeDay;
 
       day.exercises.forEach((ex) => {
         const savedEntry = dayProgress[ex.name];
         const history = state.progressHistory[ex.name] || [];
         const last = history[history.length - 1];
 
-        html += `
-          <div class="exercise-row">
-            <div class="ex-info">
-              <span class="ex-name">${escapeHTML(ex.name)}</span>
-              <span class="ex-sets">${escapeHTML(ex.sets)}</span>
-              ${renderProgressInput(ex, savedEntry)}
-              ${last ? `<span class="ex-last">Last: ${escapeHTML(formatEntry(ex.logType, last))} (${formatDateShort(last.date)})</span>` : ""}
-            </div>
-          </div>`;
+        if (isEditing) {
+          html += `
+            <div class="exercise-row exercise-row-editing">
+              <div class="ex-info">
+                <span class="ex-name">${escapeHTML(ex.name)}</span>
+                <span class="ex-sets">${escapeHTML(ex.sets)}</span>
+                ${renderEditInput(ex, savedEntry)}
+              </div>
+            </div>`;
+        } else {
+          html += `
+            <div class="exercise-row">
+              <div class="ex-info">
+                <span class="ex-name">${escapeHTML(ex.name)}</span>
+                <span class="ex-sets">${escapeHTML(ex.sets)}</span>
+                ${renderProgressInput(ex, savedEntry)}
+                ${last ? `<span class="ex-last">Last: ${escapeHTML(formatEntry(ex.logType, last))} (${formatDateShort(last.date)})</span>` : ""}
+              </div>
+            </div>`;
+        }
       });
 
       const dayDone = !!state.workoutDayDone[activeDay];
-      html += `<button class="mark-day-btn ${dayDone ? "marked" : ""}" id="markDayBtn">${dayDone ? "Workout logged ✓ (tap to undo)" : "Mark workout complete"}</button>`;
+      if (!isEditing) {
+        html += `<button class="mark-day-btn ${dayDone ? "marked" : ""}" id="markDayBtn">${dayDone ? "Workout logged ✓ (tap to undo)" : "Mark workout complete"}</button>`;
+      }
       html += `</div>`;
     }
 
     container.innerHTML = html;
 
+    const dateInput = document.getElementById("workoutLogDateInput");
+    if (dateInput) {
+      dateInput.addEventListener("change", () => {
+        if (!dateInput.value) return;
+        state.workoutLogDate = dateInput.value;
+        saveState();
+        renderToday();
+      });
+    }
+
     container.querySelectorAll(".workout-day-pill").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.selectedWorkoutDay = parseInt(btn.dataset.dayidx, 10);
+        state.editingDay = null; // leave edit mode when switching days
         saveState();
         renderToday();
       });
     });
 
     if (day) {
-      document.getElementById("markDayBtn").addEventListener("click", () => {
-        state.workoutDayDone[activeDay] = !state.workoutDayDone[activeDay];
-        saveState();
-        renderToday();
-        renderRing();
-      });
-
-      container.querySelectorAll(".progress-save-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const exName = btn.dataset.exname;
-          const logType = btn.dataset.logtype;
-          const row = btn.closest(".progress-input-row");
-          const todayDateKey = getSelectedDateKey();
-          const entry = { date: todayDateKey };
-
-          function flagInvalid(fieldEl) {
-            fieldEl.classList.add("progress-input-error");
-            fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
-          }
-
-          if (logType === "weight") {
-            const weightEl = row.querySelector('[data-field="weight"]');
-            const repsEl = row.querySelector('[data-field="reps"]');
-            const w = parseFloat(weightEl.value);
-            const r = parseInt(repsEl.value, 10);
-            let bad = false;
-            if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
-            if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
-            if (bad) return;
-            entry.weight = w;
-            entry.reps = r;
-          } else if (logType === "reps") {
-            const repsEl = row.querySelector('[data-field="reps"]');
-            const r = parseInt(repsEl.value, 10);
-            if (isNaN(r)) { flagInvalid(repsEl); return; }
-            entry.reps = r;
-          } else if (logType === "duration") {
-            const minutesEl = row.querySelector('[data-field="minutes"]');
-            const m = parseFloat(minutesEl.value);
-            if (isNaN(m)) { flagInvalid(minutesEl); return; }
-            entry.minutes = m;
-            const noteEl = row.querySelector('[data-field="note"]');
-            if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
-          }
-
-          // Save as this day's current progress (date-free, manual system).
-          if (!state.workoutProgress[activeDay]) state.workoutProgress[activeDay] = {};
-          state.workoutProgress[activeDay][exName] = entry;
-
-          // Also append to progressHistory (keyed by real date) so Records
-          // still has an accurate log of what happened on which calendar day.
-          if (!state.progressHistory[exName]) state.progressHistory[exName] = [];
-          const histList = state.progressHistory[exName];
-          const existingIdx = histList.findIndex((h) => h.date === todayDateKey);
-          if (existingIdx >= 0) histList[existingIdx] = entry;
-          else histList.push(entry);
-
+      const editBtn = document.getElementById("editDayBtn");
+      if (editBtn) {
+        editBtn.addEventListener("click", () => {
+          state.editingDay = state.editingDay === activeDay ? null : activeDay;
           saveState();
           renderToday();
         });
-      });
+      }
+
+      if (!isEditingDay(activeDay)) {
+        document.getElementById("markDayBtn").addEventListener("click", () => {
+          state.workoutDayDone[activeDay] = !state.workoutDayDone[activeDay];
+          saveState();
+          renderToday();
+          renderRing();
+        });
+
+        container.querySelectorAll(".progress-save-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const exName = btn.dataset.exname;
+            const logType = btn.dataset.logtype;
+            const row = btn.closest(".progress-input-row");
+            const logDate = getWorkoutLogDateKey();
+            const entry = { date: logDate };
+
+            function flagInvalid(fieldEl) {
+              fieldEl.classList.add("progress-input-error");
+              fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
+            }
+
+            if (logType === "weight") {
+              const weightEl = row.querySelector('[data-field="weight"]');
+              const repsEl = row.querySelector('[data-field="reps"]');
+              const w = parseFloat(weightEl.value);
+              const r = parseInt(repsEl.value, 10);
+              let bad = false;
+              if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
+              if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
+              if (bad) return;
+              entry.weight = w;
+              entry.reps = r;
+            } else if (logType === "reps") {
+              const repsEl = row.querySelector('[data-field="reps"]');
+              const r = parseInt(repsEl.value, 10);
+              if (isNaN(r)) { flagInvalid(repsEl); return; }
+              entry.reps = r;
+            } else if (logType === "duration") {
+              const minutesEl = row.querySelector('[data-field="minutes"]');
+              const m = parseFloat(minutesEl.value);
+              if (isNaN(m)) { flagInvalid(minutesEl); return; }
+              entry.minutes = m;
+              const noteEl = row.querySelector('[data-field="note"]');
+              if (noteEl && noteEl.value.trim()) entry.note = noteEl.value.trim();
+            }
+
+            // Save as this day's current progress (tagged with the chosen log date).
+            if (!state.workoutProgress[activeDay]) state.workoutProgress[activeDay] = {};
+            state.workoutProgress[activeDay][exName] = entry;
+
+            // Also append/update progressHistory (keyed by that same date) so
+            // Records has an accurate log of what happened on which calendar day.
+            if (!state.progressHistory[exName]) state.progressHistory[exName] = [];
+            const histList = state.progressHistory[exName];
+            const existingIdx = histList.findIndex((h) => h.date === logDate);
+            if (existingIdx >= 0) histList[existingIdx] = entry;
+            else histList.push(entry);
+
+            saveState();
+            renderToday();
+          });
+        });
+      } else {
+        // Editing mode: Save updates the existing entry's numbers only
+        // (does not change its date). Delete removes it entirely from both
+        // workoutProgress and progressHistory.
+        container.querySelectorAll(".edit-save-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const exName = btn.dataset.exname;
+            const logType = btn.dataset.logtype;
+            const row = btn.closest(".progress-input-row");
+            const existing = (state.workoutProgress[activeDay] || {})[exName];
+            if (!existing) return; // nothing to edit
+
+            function flagInvalid(fieldEl) {
+              fieldEl.classList.add("progress-input-error");
+              fieldEl.addEventListener("input", () => fieldEl.classList.remove("progress-input-error"), { once: true });
+            }
+
+            const updated = { date: existing.date };
+
+            if (logType === "weight") {
+              const weightEl = row.querySelector('[data-field="weight"]');
+              const repsEl = row.querySelector('[data-field="reps"]');
+              const w = parseFloat(weightEl.value);
+              const r = parseInt(repsEl.value, 10);
+              let bad = false;
+              if (isNaN(w)) { flagInvalid(weightEl); bad = true; }
+              if (isNaN(r)) { flagInvalid(repsEl); bad = true; }
+              if (bad) return;
+              updated.weight = w;
+              updated.reps = r;
+            } else if (logType === "reps") {
+              const repsEl = row.querySelector('[data-field="reps"]');
+              const r = parseInt(repsEl.value, 10);
+              if (isNaN(r)) { flagInvalid(repsEl); return; }
+              updated.reps = r;
+            } else if (logType === "duration") {
+              const minutesEl = row.querySelector('[data-field="minutes"]');
+              const m = parseFloat(minutesEl.value);
+              if (isNaN(m)) { flagInvalid(minutesEl); return; }
+              updated.minutes = m;
+              const noteEl = row.querySelector('[data-field="note"]');
+              if (noteEl && noteEl.value.trim()) updated.note = noteEl.value.trim();
+            }
+
+            state.workoutProgress[activeDay][exName] = updated;
+
+            const histList = state.progressHistory[exName] || [];
+            const existingIdx = histList.findIndex((h) => h.date === existing.date);
+            if (existingIdx >= 0) histList[existingIdx] = updated;
+
+            saveState();
+            renderToday();
+          });
+        });
+
+        container.querySelectorAll(".edit-delete-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const exName = btn.dataset.exname;
+            const existing = (state.workoutProgress[activeDay] || {})[exName];
+            if (!existing) return;
+
+            if (state.workoutProgress[activeDay]) delete state.workoutProgress[activeDay][exName];
+
+            const histList = state.progressHistory[exName] || [];
+            const existingIdx = histList.findIndex((h) => h.date === existing.date);
+            if (existingIdx >= 0) histList.splice(existingIdx, 1);
+
+            saveState();
+            renderToday();
+          });
+        });
+      }
     }
+  }
+
+  function isEditingDay(dayIdx) {
+    return state.editingDay === dayIdx;
+  }
+
+  function renderEditInput(ex, savedEntry) {
+    if (!savedEntry) {
+      return `<span class="record-no-exercises">Not logged yet for this day — nothing to edit.</span>`;
+    }
+    const t = savedEntry;
+    let fieldsHTML = "";
+    if (ex.logType === "weight") {
+      fieldsHTML = `
+        <input type="number" step="0.5" min="0" class="progress-input" data-field="weight" placeholder="kg" value="${t.weight != null ? t.weight : ""}">
+        <input type="number" min="0" class="progress-input progress-input-narrow" data-field="reps" placeholder="reps" value="${t.reps != null ? t.reps : ""}">`;
+    } else if (ex.logType === "reps") {
+      fieldsHTML = `
+        <input type="number" min="0" class="progress-input progress-input-narrow" data-field="reps" placeholder="reps" value="${t.reps != null ? t.reps : ""}">`;
+    } else if (ex.logType === "duration") {
+      fieldsHTML = `
+        <input type="number" step="1" min="0" class="progress-input progress-input-narrow" data-field="minutes" placeholder="min" value="${t.minutes != null ? t.minutes : ""}">
+        <input type="text" class="progress-input" data-field="note" placeholder="pace/incline (optional)" value="${t.note ? escapeAttr(t.note) : ""}">`;
+    }
+    return `
+      <div class="progress-input-row">
+        ${fieldsHTML}
+        <button class="edit-save-btn" data-exname="${escapeAttr(ex.name)}" data-logtype="${escapeAttr(ex.logType)}">Save</button>
+        <button class="edit-delete-btn" data-exname="${escapeAttr(ex.name)}" aria-label="Delete this log">🗑</button>
+      </div>
+      <span class="ex-last">Logged: ${escapeHTML(formatDateShort(t.date))}</span>`;
   }
 
   function renderProgressInput(ex, todayEntry) {

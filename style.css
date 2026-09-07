@@ -431,6 +431,88 @@ button { font-family: inherit; }
 
 .date-picker-input:focus { outline: none; border-color: var(--sage); }
 
+.log-date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.log-date-label {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.workout-day-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.edit-day-btn {
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-radius: 20px;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.edit-day-btn:hover { border-color: var(--sage); color: var(--ink); }
+
+.exercise-row-editing {
+  background: var(--sage-dim);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 0 -12px;
+}
+
+.exercise-row-editing .ex-info { gap: 6px; }
+
+.edit-save-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--sage);
+  color: var(--paper-raised);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.edit-save-btn:hover { background: #7C8F6F; }
+.edit-save-btn:active { transform: scale(0.94); }
+
+.edit-delete-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--clay);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--clay);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.edit-delete-btn:hover { background: var(--clay-dim); }
+.edit-delete-btn:active { transform: scale(0.9); }
+
 .day-number-badge {
   font-family: var(--font-body);
   font-weight: 700;
