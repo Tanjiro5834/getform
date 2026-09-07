@@ -18,6 +18,7 @@
   }
 
   let state = loadState();
+  saveState(); // persist any one-time migrations (macro rounding, exercise renames) immediately
 
   function getSelectedDateKey() {
     return new Date().toISOString().slice(0, 10);
@@ -37,6 +38,31 @@
           day[macroKey] = Math.round(day[macroKey] * 10) / 10;
         });
       });
+
+      // One-time migration: two exercises were renamed when swapped for
+      // no-equipment alternatives. Relabel existing logs to the new names
+      // so Records/Today "Last:" hints line up with the current plan —
+      // the logged numbers themselves are untouched, only the name changes.
+      const RENAMES = {
+        "Standing barbell good morning": "Dumbbell stiff-leg deadlift",
+        "Calf raises (barbell on shoulders)": "Single-leg calf raise (bodyweight)",
+      };
+      Object.keys(RENAMES).forEach((oldName) => {
+        const newName = RENAMES[oldName];
+        if (merged.progressHistory && merged.progressHistory[oldName]) {
+          merged.progressHistory[newName] = (merged.progressHistory[newName] || [])
+            .concat(merged.progressHistory[oldName]);
+          delete merged.progressHistory[oldName];
+        }
+        Object.keys(merged.workoutProgress || {}).forEach((dayIdx) => {
+          const dayProg = merged.workoutProgress[dayIdx];
+          if (dayProg && dayProg[oldName]) {
+            dayProg[newName] = dayProg[oldName];
+            delete dayProg[oldName];
+          }
+        });
+      });
+
       return merged;
     } catch (e) {
       return defaultState();
