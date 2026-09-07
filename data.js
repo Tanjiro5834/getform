@@ -7,9 +7,9 @@
 const WEEK_PLAN = {
   0: { label: "Day 1", type: "lower", title: "Lower (hinge)", exercises: [
       { name: "Barbell Romanian deadlift", sets: "3 × 10–12", logType: "weight" },
-      { name: "Standing barbell good morning", sets: "3 × 12–15", logType: "weight" },
+      { name: "Dumbbell stiff-leg deadlift", sets: "3 × 12–15", logType: "weight" },
       { name: "Single-leg RDL (bodyweight)", sets: "3 × 10/leg", logType: "reps" },
-      { name: "Calf raises (barbell on shoulders)", sets: "3 × 15–20", logType: "weight" },
+      { name: "Single-leg calf raise (bodyweight)", sets: "3 × 15–20/leg", logType: "reps" },
     ] },
   1: { label: "Day 2", type: "upper", title: "Upper (pull)", exercises: [
       { name: "Barbell row", sets: "3 × 10–12", logType: "weight" },
