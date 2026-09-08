@@ -26,14 +26,8 @@
     <span class="sidebar-brand-main">GetForm</span>
     <span class="sidebar-brand-tag">recomposition log</span>
   </div>
-  <ul class="sidebar-nav">
-    <li><a href="#" class="sidebar-link active" data-page="today"><span class="sidebar-link-dot"></span>Today</a></li>
-    <li><a href="#" class="sidebar-link" data-page="macros"><span class="sidebar-link-dot"></span>Macros</a></li>
-    <li><a href="#" class="sidebar-link" data-page="foods"><span class="sidebar-link-dot"></span>Food reference</a></li>
-    <li><a href="#" class="sidebar-link" data-page="meals"><span class="sidebar-link-dot"></span>Meal reference</a></li>
-    <li><a href="#" class="sidebar-link" data-page="log"><span class="sidebar-link-dot"></span>Weekly log</a></li>
-    <li><a href="#" class="sidebar-link" data-page="records"><span class="sidebar-link-dot"></span>Records</a></li>
-  </ul>
+  <ul class="sidebar-modules" id="sidebarModules"></ul>
+  <ul class="sidebar-nav" id="sidebarSubnav"></ul>
   <div class="sidebar-ring" id="sidebarRing" aria-label="Weekly training progress">
     <svg viewBox="0 0 120 120" class="ring-svg">
       <g id="ringSegments"></g>
@@ -49,6 +43,8 @@
 
 
 <main class="layout">
+
+<div id="physiqueRoot">
 
   <!-- PAGE: TODAY -->
   <div class="page active" data-page="today">
@@ -149,6 +145,17 @@
       <div id="recordsList" class="records-list"></div>
     </section>
   </div>
+
+</div>
+<!-- /physiqueRoot -->
+
+<div id="skinRoot" style="display:none"></div>
+
+<div id="teethRoot" style="display:none"></div>
+
+<div id="haircutRoot" style="display:none"></div>
+
+<div id="sleepRoot" style="display:none"></div>
 
 </main>
 

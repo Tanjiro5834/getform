@@ -16,6 +16,24 @@
       selectedWorkoutDay: 0,  // which WEEK_PLAN day index is currently open on the Workouts page
       workoutLogDate: null,   // "YYYY-MM-DD" — which date new workout logs get tagged with; defaults to real today
       editingDay: null,       // dayIndex currently in edit mode, or null
+
+      // Skin tracker — per-day AM/PM checklist.
+      // "YYYY-MM-DD" -> { am: { water, sunscreen }, pm: { water, toner } }
+      skinLogged: {},
+
+      // Teeth whitening tracker — per-day 3x brushing checklist.
+      // "YYYY-MM-DD" -> { morning: {done, at}, afternoon: {done, at}, evening: {done, at} }
+      // "at" is an ISO timestamp string, set when marked done, cleared when unmarked.
+      teethLogged: {},
+
+      // Haircut & facial hair tracker.
+      faceShape: null,          // one of FACE_SHAPES keys, or null if not set
+      lastShaveDate: null,      // "YYYY-MM-DD" — most recent shave
+      shaveIntervalDays: 7,     // days between shaves, user-editable
+
+      // Sleep tracker — one entry per night, keyed by the wake date.
+      // "YYYY-MM-DD" -> { sleepAt: ISOString, wakeAt: ISOString }
+      sleepLogged: {},
     };
   }
 
@@ -527,6 +545,279 @@
     });
   }
 
+  // ===== Skin tracker =====
+
+  const SKIN_SLOTS = [
+    { key: "am", label: "Morning", items: [
+      { key: "water", label: "Water" },
+      { key: "sunscreen", label: "Sunscreen" },
+    ]},
+    { key: "pm", label: "Evening", items: [
+      { key: "water", label: "Water" },
+      { key: "toner", label: "Toner" },
+    ]},
+  ];
+
+  function getSkinDay(dateKey) {
+    if (!state.skinLogged[dateKey]) {
+      state.skinLogged[dateKey] = { am: { water: false, sunscreen: false }, pm: { water: false, toner: false } };
+    }
+    return state.skinLogged[dateKey];
+  }
+
+  // ===== Teeth whitening tracker =====
+
+  const TEETH_SLOTS = [
+    { key: "morning", label: "Morning" },
+    { key: "afternoon", label: "Afternoon" },
+    { key: "evening", label: "Evening" },
+  ];
+
+  function getTeethDay(dateKey) {
+    if (!state.teethLogged[dateKey]) {
+      state.teethLogged[dateKey] = {
+        morning: { done: false, at: null },
+        afternoon: { done: false, at: null },
+        evening: { done: false, at: null },
+      };
+    }
+    return state.teethLogged[dateKey];
+  }
+
+  function formatTimeShort(iso) {
+    if (!iso) return "";
+    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderTeethToday() {
+    const root = document.getElementById("teethRoot");
+    const dateKey = getSelectedDateKey();
+    const day = getTeethDay(dateKey);
+
+    root.innerHTML = `
+      <div class="page active" data-page="today">
+        <section class="panel panel-today" aria-labelledby="teethTodayHeading">
+          <div class="panel-head">
+            <h1 id="teethTodayHeading" class="panel-title">Teeth Whitening — Today</h1>
+            <span class="date-chip">${formatDateLong(dateKey)}</span>
+          </div>
+          <div class="meal-list" id="teethSlots"></div>
+        </section>
+      </div>`;
+
+    const list = root.querySelector("#teethSlots");
+    TEETH_SLOTS.forEach((slot) => {
+      const entry = day[slot.key];
+      const row = document.createElement("div");
+      row.className = "meal-item" + (entry.done ? " eaten" : "");
+      row.innerHTML = `
+        <div class="meal-check"></div>
+        <div class="meal-text">
+          <span class="meal-name">${escapeHTML(slot.label)}</span>
+          ${entry.done ? `<span class="meal-desc">Brushed at ${formatTimeShort(entry.at)}</span>` : ""}
+        </div>`;
+      row.addEventListener("click", () => {
+        entry.done = !entry.done;
+        entry.at = entry.done ? new Date().toISOString() : null;
+        saveState();
+        renderTeethToday();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  // ===== Haircut & facial hair tracker =====
+
+  const FACE_SHAPES = {
+    oval:     { label: "Oval",     styles: ["Most styles work well", "Textured crop", "Classic side part"] },
+    round:    { label: "Round",    styles: ["Fade with height on top", "Pompadour", "Avoid flat, round-on-round volume"] },
+    square:   { label: "Square",   styles: ["Textured crop", "Faux hawk", "Short fringe"] },
+    oblong:   { label: "Oblong",   styles: ["Fringe to shorten the face", "Fade with volume on the sides", "Avoid excess height on top"] },
+    diamond:  { label: "Diamond",  styles: ["Textured fringe", "Chin-length volume via beard", "Side-swept styles"] },
+    heart:    { label: "Heart",    styles: ["Side-swept fringe", "Short-to-medium length with volume at the jaw", "Avoid heavy volume on top"] },
+  };
+
+  function renderHaircutToday() {
+    const root = document.getElementById("haircutRoot");
+    const shape = state.faceShape;
+    const rec = shape ? FACE_SHAPES[shape] : null;
+
+    const today = getSelectedDateKey();
+    let dueBadge = "";
+    let daysNote = "No shave logged yet";
+    if (state.lastShaveDate) {
+      const last = new Date(state.lastShaveDate + "T00:00:00");
+      const now = new Date(today + "T00:00:00");
+      const daysSince = Math.round((now - last) / 86400000);
+      const daysLeft = state.shaveIntervalDays - daysSince;
+      daysNote = daysSince === 0 ? "Shaved today" : `Last shaved ${daysSince} day${daysSince === 1 ? "" : "s"} ago`;
+      dueBadge = daysLeft <= 0
+        ? `<span class="date-chip" style="color:var(--clay)">Due now</span>`
+        : `<span class="date-chip">Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}</span>`;
+    }
+
+    root.innerHTML = `
+      <div class="page active" data-page="today">
+        <section class="panel panel-today" aria-labelledby="haircutHeading">
+          <div class="panel-head">
+            <h1 id="haircutHeading" class="panel-title">Haircut &amp; Facial Hair</h1>
+          </div>
+
+          <div class="skin-slot">
+            <h3 class="skin-slot-title">Face shape</h3>
+            <select id="faceShapeSelect" class="records-select">
+              <option value="">Select your face shape…</option>
+              ${Object.keys(FACE_SHAPES).map(k => `<option value="${k}" ${shape === k ? "selected" : ""}>${FACE_SHAPES[k].label}</option>`).join("")}
+            </select>
+            ${rec ? `
+              <div class="meal-list" style="margin-top:14px">
+                ${rec.styles.map(s => `
+                  <div class="meal-item">
+                    <div class="meal-check" style="visibility:hidden"></div>
+                    <div class="meal-text"><span class="meal-name">${escapeHTML(s)}</span></div>
+                  </div>`).join("")}
+              </div>` : ""}
+          </div>
+
+          <div class="skin-slot">
+            <div class="panel-head" style="margin-bottom:10px">
+              <h3 class="skin-slot-title" style="margin:0">Shave schedule</h3>
+              ${dueBadge}
+            </div>
+            <p class="panel-sub" style="margin-bottom:12px">${daysNote}</p>
+            <div class="quick-add-row">
+              <button class="quick-add-btn" id="logShaveBtn" style="opacity:1">Log shave today</button>
+              <input type="number" id="shaveIntervalInput" class="quick-add-qty" min="1" step="1" value="${state.shaveIntervalDays}" style="width:70px" title="Days between shaves">
+            </div>
+          </div>
+        </section>
+      </div>`;
+
+    root.querySelector("#faceShapeSelect").addEventListener("change", (e) => {
+      state.faceShape = e.target.value || null;
+      saveState();
+      renderHaircutToday();
+    });
+
+    root.querySelector("#logShaveBtn").addEventListener("click", () => {
+      state.lastShaveDate = getSelectedDateKey();
+      saveState();
+      renderHaircutToday();
+    });
+
+    root.querySelector("#shaveIntervalInput").addEventListener("change", (e) => {
+      const val = parseInt(e.target.value, 10);
+      state.shaveIntervalDays = (Number.isFinite(val) && val > 0) ? val : 7;
+      saveState();
+      renderHaircutToday();
+    });
+  }
+
+  // ===== Sleep tracker =====
+
+  function sleepDurationHours(sleepAtISO, wakeAtISO) {
+    const diffMs = new Date(wakeAtISO) - new Date(sleepAtISO);
+    if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
+    return Math.round((diffMs / 3600000) * 10) / 10; // one decimal, e.g. 8.5
+  }
+
+  function toDatetimeLocalValue(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderSleepToday() {
+    const root = document.getElementById("sleepRoot");
+    const dateKey = getSelectedDateKey();
+    const entry = state.sleepLogged[dateKey] || { sleepAt: null, wakeAt: null };
+    const duration = (entry.sleepAt && entry.wakeAt) ? sleepDurationHours(entry.sleepAt, entry.wakeAt) : null;
+
+    root.innerHTML = `
+      <div class="page active" data-page="today">
+        <section class="panel panel-today" aria-labelledby="sleepHeading">
+          <div class="panel-head">
+            <h1 id="sleepHeading" class="panel-title">Sleep — Today</h1>
+            <span class="date-chip">${formatDateLong(dateKey)}</span>
+          </div>
+
+          <div class="skin-slot">
+            <h3 class="skin-slot-title">Went to sleep</h3>
+            <input type="datetime-local" id="sleepAtInput" class="quick-add-input" value="${toDatetimeLocalValue(entry.sleepAt)}">
+          </div>
+          <div class="skin-slot">
+            <h3 class="skin-slot-title">Woke up</h3>
+            <input type="datetime-local" id="wakeAtInput" class="quick-add-input" value="${toDatetimeLocalValue(entry.wakeAt)}">
+          </div>
+
+          ${duration !== null ? `
+            <div class="macro-total">
+              <span class="macro-total-label">Sleep duration</span>
+              <span class="macro-total-value">${duration} <span class="unit">hours</span></span>
+            </div>` : ""}
+        </section>
+      </div>`;
+
+    function commit() {
+      const sleepVal = root.querySelector("#sleepAtInput").value;
+      const wakeVal = root.querySelector("#wakeAtInput").value;
+      state.sleepLogged[dateKey] = {
+        sleepAt: sleepVal ? new Date(sleepVal).toISOString() : null,
+        wakeAt: wakeVal ? new Date(wakeVal).toISOString() : null,
+      };
+      saveState();
+      renderSleepToday();
+    }
+
+    root.querySelector("#sleepAtInput").addEventListener("change", commit);
+    root.querySelector("#wakeAtInput").addEventListener("change", commit);
+  }
+
+  function renderSkinToday() {
+    const root = document.getElementById("skinRoot");
+    const dateKey = getSelectedDateKey();
+    const day = getSkinDay(dateKey);
+
+    root.innerHTML = `
+      <div class="page active" data-page="today">
+        <section class="panel panel-today" aria-labelledby="skinTodayHeading">
+          <div class="panel-head">
+            <h1 id="skinTodayHeading" class="panel-title">Skin — Today</h1>
+            <span class="date-chip">${formatDateLong(dateKey)}</span>
+          </div>
+          <div id="skinSlots"></div>
+        </section>
+      </div>`;
+
+    const slotsContainer = root.querySelector("#skinSlots");
+    SKIN_SLOTS.forEach((slot) => {
+      const slotEl = document.createElement("div");
+      slotEl.className = "skin-slot";
+      slotEl.innerHTML = `<h3 class="skin-slot-title">${escapeHTML(slot.label)}</h3>`;
+      const list = document.createElement("div");
+      list.className = "meal-list";
+      slot.items.forEach((item) => {
+        const done = !!day[slot.key][item.key];
+        const row = document.createElement("div");
+        row.className = "meal-item" + (done ? " eaten" : "");
+        row.innerHTML = `
+          <div class="meal-check"></div>
+          <div class="meal-text">
+            <span class="meal-name">${escapeHTML(item.label)}</span>
+          </div>`;
+        row.addEventListener("click", () => {
+          day[slot.key][item.key] = !day[slot.key][item.key];
+          saveState();
+          renderSkinToday();
+        });
+        list.appendChild(row);
+      });
+      slotEl.appendChild(list);
+      slotsContainer.appendChild(slotEl);
+    });
+  }
+
   // ===== Quick add food =====
 
   let selectedFood = null;
@@ -726,8 +1017,32 @@
     return String(str).replace(/"/g, "&quot;");
   }
 
-  // ===== Sidebar / hamburger / page switching =====
+  // ===== Module / sidebar / hamburger / page switching =====
 
+  const MODULES = [
+    { key: "skin",     label: "Skin Tracker" },
+    { key: "physique", label: "Physique Tracker" },
+    { key: "teeth",    label: "Teeth Whitening Tracker" },
+    { key: "haircut",  label: "Haircut & Facial Hair" },
+    { key: "sleep",    label: "Sleep Tracker" },
+  ];
+
+  const SUBVIEWS = {
+    physique: [
+      { key: "today",  label: "Today" },
+      { key: "macros", label: "Macros" },
+      { key: "foods",  label: "Food reference" },
+      { key: "meals",  label: "Meal reference" },
+      { key: "log",    label: "Weekly log" },
+      { key: "records",label: "Records" },
+    ],
+    skin:    [{ key: "today", label: "Today" }],
+    teeth:   [{ key: "today", label: "Today" }],
+    haircut: [{ key: "today", label: "Today" }],
+    sleep:   [{ key: "today", label: "Today" }],
+  };
+
+  let activeModule = localStorage.getItem("gf_activeModule") || "physique";
   let sidebarBound = false;
 
   function setupSidebar() {
@@ -737,8 +1052,6 @@
     const hamburger = document.getElementById("hamburgerBtn");
     const sidebar = document.getElementById("sidebar");
     const overlay = document.getElementById("sidebarOverlay");
-    const links = Array.from(document.querySelectorAll(".sidebar-link"));
-    const pages = Array.from(document.querySelectorAll(".page"));
 
     function openSidebar() {
       sidebar.classList.add("open");
@@ -751,30 +1064,87 @@
       hamburger.setAttribute("aria-expanded", "false");
     }
 
-    function showPage(pageName) {
-      pages.forEach((p) => p.classList.toggle("active", p.dataset.page === pageName));
-      links.forEach((l) => l.classList.toggle("active", l.dataset.page === pageName));
-      if (pageName === "records") {
-        recordsPage = 1;
-        renderRecords();
-      }
-      document.querySelector(".layout").scrollTo?.(0, 0);
-      window.scrollTo(0, 0);
-    }
-
     hamburger.addEventListener("click", () => {
       const isOpen = sidebar.classList.contains("open");
       isOpen ? closeSidebar() : openSidebar();
     });
     overlay.addEventListener("click", closeSidebar);
 
-    links.forEach((link) => {
+    // Expose so subnav clicks (bound below) can close the sidebar on mobile too
+    setupSidebar._closeSidebar = closeSidebar;
+
+    renderModuleList();
+    bindSubnavClicks();
+    renderSubnavFor(activeModule); // paint correct subnav + page root on load
+  }
+
+  function renderModuleList() {
+    const list = document.getElementById("sidebarModules");
+    list.innerHTML = MODULES.map(m => `
+      <li><a href="#" class="sidebar-module-link ${m.key === activeModule ? "active" : ""}" data-module="${m.key}">${m.label}</a></li>
+    `).join("");
+
+    list.querySelectorAll(".sidebar-module-link").forEach(link => {
       link.addEventListener("click", (e) => {
         e.preventDefault();
-        showPage(link.dataset.page);
-        closeSidebar();
+        setActiveModule(link.dataset.module);
       });
     });
+  }
+
+  function setActiveModule(key) {
+    activeModule = key;
+    localStorage.setItem("gf_activeModule", key);
+    document.querySelectorAll(".sidebar-module-link").forEach(l =>
+      l.classList.toggle("active", l.dataset.module === key));
+    renderSubnavFor(key);
+    document.getElementById("sidebarRing").style.display = key === "physique" ? "" : "none";
+  }
+
+  function bindSubnavClicks() {
+    // Delegated: subnav <li>s get replaced on every module switch, so a
+    // direct-bound listener would die with the old nodes. Binding once on
+    // the stable parent avoids re-binding after every renderSubnavFor call.
+    document.getElementById("sidebarSubnav").addEventListener("click", (e) => {
+      const link = e.target.closest(".sidebar-link");
+      if (!link) return;
+      e.preventDefault();
+      showPage(link.dataset.page);
+      if (setupSidebar._closeSidebar) setupSidebar._closeSidebar();
+    });
+  }
+
+  function renderSubnavFor(key) {
+    // Show only the active module's root div
+    MODULES.forEach(m => {
+      const root = document.getElementById(m.key + "Root");
+      if (root) root.style.display = m.key === key ? "" : "none";
+    });
+
+    // Rebuild the subnav list for this module
+    const subnav = document.getElementById("sidebarSubnav");
+    const views = SUBVIEWS[key] || [];
+    subnav.innerHTML = views.map((v, i) => `
+      <li><a href="#" class="sidebar-link ${i === 0 ? "active" : ""}" data-page="${v.key}"><span class="sidebar-link-dot"></span>${v.label}</a></li>
+    `).join("");
+
+    // Activate the first subview's page within the newly-shown root
+    if (views[0]) showPage(views[0].key);
+  }
+
+  function showPage(pageName) {
+    // Scope to the active module's root so same-named data-page values
+    // in other (hidden) modules don't get toggled active too.
+    const root = document.getElementById(activeModule + "Root");
+    if (!root) return;
+    root.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.dataset.page === pageName));
+    document.querySelectorAll(".sidebar-link").forEach((l) => l.classList.toggle("active", l.dataset.page === pageName));
+    if (activeModule === "physique" && pageName === "records") {
+      recordsPage = 1;
+      renderRecords();
+    }
+    document.querySelector(".layout").scrollTo?.(0, 0);
+    window.scrollTo(0, 0);
   }
 
   // ===== Records =====
@@ -1057,6 +1427,10 @@
     renderFoods();
     renderLogTable();
     renderRecords();
+    renderSkinToday();
+    renderTeethToday();
+    renderHaircutToday();
+    renderSleepToday();
     setupQuickAdd();
     setupSidebar();
     setupRecordsFilters();
