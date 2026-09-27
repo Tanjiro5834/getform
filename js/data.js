@@ -29,9 +29,9 @@ const WEEK_PLAN = {
 };
 
 const MACRO_TARGETS = [
-  { key: "protein", label: "Protein", target: 110, unit: "g", kcalPerUnit: 4, color: "sage" },
-  { key: "fat",     label: "Fat",     target: 50,  unit: "g", kcalPerUnit: 9, color: "clay" },
-  { key: "carbs",   label: "Carbs",   target: 220, unit: "g", kcalPerUnit: 4, color: "line" },
+  { key: "protein", label: "Protein", target: 111, unit: "g", kcalPerUnit: 4, color: "sage" },
+  { key: "fat",     label: "Fat",     target: 55,  unit: "g", kcalPerUnit: 9, color: "clay" },
+  { key: "carbs",   label: "Carbs",   target: 278, unit: "g", kcalPerUnit: 4, color: "line" },
 ];
 
 const MEALS = [
